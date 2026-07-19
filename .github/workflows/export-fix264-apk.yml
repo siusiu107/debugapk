@@ -1,0 +1,47 @@
+name: Export FIX264 APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/export-fix264-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f artifacts/DetoxLock_FIX264_v3.0.22_debug.apk
+          ls -lh artifacts/DetoxLock_FIX264_v3.0.22_debug.apk
+          sha256sum artifacts/DetoxLock_FIX264_v3.0.22_debug.apk
+
+      - name: Publish export run id
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "run_id=$GITHUB_RUN_ID commit=$GITHUB_SHA" > artifacts/FIX264_EXPORT_RUN.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/FIX264_EXPORT_RUN.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish FIX264 export run id"
+            git push
+          fi
+
+      - name: Upload FIX264 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DetoxLock-FIX264-v3.0.22-debug-apk
+          path: artifacts/DetoxLock_FIX264_v3.0.22_debug.apk
+          if-no-files-found: error
