@@ -1,0 +1,170 @@
+Downloading Gradle: https://services.gradle.org/distributions/gradle-8.8-bin.zip
+Unzipping: /home/runner/.gradle/wrapper/dists/gradle-8.8-bin/b5f1991261/gradle-8.8-bin.zip
+
+Welcome to Gradle 8.8!
+
+Here are the highlights of this release:
+ - Running Gradle on Java 22
+ - Configurable Gradle daemon JVM
+ - Improved IDE performance for large projects
+
+For more details see https://docs.gradle.org/8.8/release-notes.html
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.8/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :app
+WARNING: The option setting 'android.enableDexingArtifactTransform=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 8.3 of the Android Gradle plugin.
+WARNING: The option 'android.enableD8.desugaring' is deprecated.
+The current default is 'true'.
+It was removed in version 7.0 of the Android Gradle plugin.
+D8 desugaring is used by default, when applicable.
+
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:dataBindingMergeDependencyArtifactsDebug
+> Task :app:generateDebugResValues
+> Task :app:generateDebugResources
+> Task :app:mergeDebugResources
+> Task :app:packageDebugResources
+> Task :app:parseDebugLocalResources
+> Task :app:dataBindingGenBaseClassesDebug
+> Task :app:generateDebugBuildConfig
+> Task :app:checkDebugAarMetadata
+> Task :app:mapDebugSourceSetPaths
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :app:processDebugResources
+> Task :app:compileDebugKotlin
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/A11yOverlayGuard.kt:63:44 'FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/AdBannerHelper.kt:220:37 Parameter 'activity' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/AppLimits.kt:235:67 Parameter 'pkg' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/AppLimits.kt:509:45 Unnecessary non-null assertion (!!) on a non-null receiver of type String
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/AppLimits.kt:510:69 Unnecessary non-null assertion (!!) on a non-null receiver of type String
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/AppOpenAdHelper.kt:65:19 'load(Context, String, AdRequest, Int, AppOpenAd.AppOpenAdLoadCallback): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/AppRestrictionReactor.kt:27:75 Parameter 'reason' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/BlockActivity.kt:218:52 'FLAG_SHOW_WHEN_LOCKED: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/BlockActivity.kt:219:104 'FLAG_TURN_SCREEN_ON: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/BlockActivity.kt:220:68 'FLAG_TURN_SCREEN_ON: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/BlockActivity.kt:462:20 'setDecorFitsSystemWindows(Boolean): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/CriticalSettingsOverlay.kt:280:44 'FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/CustomStatusBarScaffold.kt:131:14 Parameter 'ctx' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/CustomStatusBarScaffold.kt:131:28 Parameter 'reason' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/CustomStatusBarScaffold.kt:367:39 'getter for connectionInfo: WifiInfo!' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt:252:71 'getter for isScreenOn: Boolean' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt:1179:33 Variable 'nextDelay' initializer is redundant
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/DetoxLockApp.kt:54:49 'TRIM_MEMORY_RUNNING_LOW: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/DetoxLockApp.kt:63:57 'TRIM_MEMORY_RUNNING_CRITICAL: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/EnforcementPulse.kt:36:13 Duplicate label in when
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/ForegroundAppDetector.kt:117:43 'MOVE_TO_FOREGROUND: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/ForegroundAppDetector.kt:120:43 'MOVE_TO_BACKGROUND: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/GongshinCoreAppResolver.kt:108:51 Unnecessary safe call on a non-null receiver of type CharSequence
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/GongshinHomeComponent.kt:62:9 Parameter 'reason' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/GongshinPermissionPreflight.kt:11:28 Parameter 'context' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/GongshinPermissionPreflight.kt:12:16 Parameter 'context' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/InlineShortFormPanel.kt:278:27 There is more than one label with such a name in this scope
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/KnoxEnforcementRouter.kt:36:41 Parameter 'ctx' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/KnoxKioskPolicyController.kt:39:71 No cast needed
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/KnoxWifiController.kt:110:22 Parameter 'ctx' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/LegalDocumentActivity.kt:144:30 This declaration overrides deprecated member but not marked as deprecated itself. Please add @Deprecated annotation or suppress. See https://youtrack.jetbrains.com/issue/KT-47902 for details
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/LegalDocumentActivity.kt:153:30 This declaration overrides deprecated member but not marked as deprecated itself. Please add @Deprecated annotation or suppress. See https://youtrack.jetbrains.com/issue/KT-47902 for details
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/LockHomeActivity.kt:176:56 'FLAG_SHOW_WHEN_LOCKED: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/LockHomeActivity.kt:176:108 'FLAG_TURN_SCREEN_ON: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/LockHomeActivity.kt:178:58 'FLAG_TURN_SCREEN_ON: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/LockHomeActivity.kt:179:56 'FLAG_SHOW_WHEN_LOCKED: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/LockHomeActivity.kt:468:58 'TRIM_MEMORY_RUNNING_LOW: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/LockHomeActivity.kt:473:62 'TRIM_MEMORY_RUNNING_CRITICAL: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/LockHomeActivity.kt:1672:49 'setDecorFitsSystemWindows(Boolean): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/LockRecoveryController.kt:11:9 Parameter 'minIntervalMs' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/LockSuccessOverlay.kt:240:149 'TYPE_PHONE: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/LockSuccessOverlay.kt:242:44 'FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/MainActivity.kt:816:9 'overridePendingTransition(Int, Int): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/MainActivity.kt:1679:46 Parameter 'index' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/MemoryBudget.kt:14:18 Parameter 'reason' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/MemoryBudget.kt:25:18 Parameter 'context' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/MemoryBudget.kt:25:77 'TRIM_MEMORY_RUNNING_LOW: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/MemoryBudget.kt:32:42 'TRIM_MEMORY_RUNNING_CRITICAL: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/OverlayGuard.kt:58:44 'TYPE_PHONE: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/OverlayGuard.kt:62:44 'FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/PinModeDataPrepareActivity.kt:73:9 'overridePendingTransition(Int, Int): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/RealtimeUsage.kt:176:30 Parameter 'now' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/RemoteSafetyGate.kt:821:40 Parameter 'commandId' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/RequiredPerms.kt:43:26 Parameter 'ctx' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/ReviewPromptManager.kt:61:46 Parameter 'totalMs' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/ReviewPromptManager.kt:86:38 Parameter 'activity' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/ReviewPromptManager.kt:86:58 Parameter 'totalMs' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/ReviewPromptManager.kt:87:45 Parameter 'activity' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/ReviewPromptManager.kt:87:65 Parameter 'reason' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/RuntimePolicyInvalidation.kt:7:41 Parameter 'reason' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/SelfUninstallHelper.kt:52:22 Variable 'opened' initializer is redundant
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/SelfUninstallHelper.kt:104:21 'clearDeviceOwnerApp(String!): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/ShortFormPolicy.kt:548:36 Parameter 'ctx' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/StrongModeManager.kt:35:37 Parameter 'ctx' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/StrongModeManager.kt:62:28 Parameter 'ctx' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/SystemBarSafeArea.kt:34:33 'setDecorFitsSystemWindows(Boolean): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/SystemBarSafeArea.kt:48:33 'setter for navigationBarColor: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/SystemBarSafeArea.kt:50:47 'setter for systemUiVisibility: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/SystemBarSafeArea.kt:50:94 'getter for systemUiVisibility: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/SystemBarSafeArea.kt:50:121 'SYSTEM_UI_FLAG_LIGHT_STATUS_BAR: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/SystemBarSafeArea.kt:50:161 'SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/SystemBarSafeArea.kt:62:33 'setDecorFitsSystemWindows(Boolean): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/SystemBarSafeArea.kt:72:33 'setter for navigationBarColor: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/UsageAccess.kt:27:31 'checkOpNoThrow(String, Int, String): Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/UsageEventDailyTotals.kt:48:67 'MOVE_TO_FOREGROUND: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/UsageEventDailyTotals.kt:50:67 'MOVE_TO_BACKGROUND: Int' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/WhitelistActivity.kt:125:51 Unnecessary safe call on a non-null receiver of type CharSequence
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/WhitelistStore.kt:96:33 Parameter 'kind' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/WifiProfileStore.kt:54:64 Type mismatch: inferred type is Nothing? but String was expected
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/WifiScanRepository.kt:44:28 'getter for connectionInfo: WifiInfo!' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/WifiScanRepository.kt:54:26 'SSID: String!' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/WifiScanRepository.kt:55:26 'SSID: String!' is deprecated. Deprecated in Java
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/WifiScanRepository.kt:57:51 'calculateSignalLevel(Int, Int): Int' is deprecated. Deprecated in Java
+
+> Task :app:javaPreCompileDebug
+> Task :app:compileDebugJavaWithJavac
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:compileDebugUnitTestKotlin
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugJavaRes
+> Task :app:processDebugUnitTestJavaRes
+> Task :app:testDebugUnitTest
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:mergeDebugShaders
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets
+> Task :app:compressDebugAssets
+> Task :app:dexBuilderDebug
+> Task :app:mergeDebugGlobalSynthetics
+> Task :app:mergeDebugJavaResource
+> Task :app:checkDebugDuplicateClasses
+> Task :app:mergeExtDexDebug
+> Task :app:mergeLibDexDebug
+> Task :app:mergeProjectDexDebug
+> Task :app:mergeDebugJniLibFolders FROM-CACHE
+> Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
+> Task :app:packageDebug
+> Task :app:createDebugApkListingFileRedirect
+> Task :app:assembleDebug
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.8/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 3m 23s
+42 actionable tasks: 40 executed, 2 from cache
