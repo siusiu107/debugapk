@@ -1,0 +1,132 @@
+diff --git a/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt b/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
+index 992aacc..c64d838 100644
+--- a/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
++++ b/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
+@@ -2231,20 +2267,17 @@ class DetoxAccessibilityService : AccessibilityService() {
+             return true
+         }
+ 
+-        if (now < selfAdminDetailArmedUntilMs && adminDetailActivity && mentionsSelf(t) &&
+-            (hasExplicitOffAction(t) || hasFinalAction(t))
+-        ) return true
+-
+-        val armedFinalForSelf = now < selfAdminDetailArmedUntilMs && mentionsSelf(t) && hasFinalAction(t)
+-        if (armedFinalForSelf) return true
+-
+-        selfAdminDetailArmedUntilMs = 0L
++        // Never inherit a previous DetoxLock row click into another app's detail page.
++        // Cross-package final dialogs are handled separately by isArmedAdminFinal(); a
++        // Settings-host detail page itself must always have the exact DetoxLock title.
++        if (now >= selfAdminDetailArmedUntilMs) selfAdminDetailArmedUntilMs = 0L
+         return false
+     }
+ 
+ 
+     private fun isSelfAccessibilityList(t: String, clickedExactSelf: Boolean): Boolean {
+         // Keep the list usable. Only a concrete click on DetoxLock's own row is routed back.
++        if (!clickedExactSelf) return false
+         if (isSettingsSearchHelpOrSuggestionActivity()) return false
+         if (!hasSelfAndExactProtectedContext(t, ::hasAccessibilityPageContext)) return false
+         return AccessibilityTargetIsolationPolicy.shouldBlockList(
+@@ -2262,6 +2295,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+         // Keep the device-admin list usable. Only a concrete click on DetoxLock's own
+         // row may be routed back; merely showing DetoxLock beside other admin apps is
+         // never enough to block another app from being enabled or configured.
++        if (!clickedExactSelf) return false
+         if (isSettingsSearchHelpOrSuggestionActivity()) return false
+         if (!hasSelfAndExactProtectedContext(t, ::hasAdminPageContext)) return false
+         return DevicePolicyHelper.isAdminActive(this) &&
+@@ -2598,6 +2632,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+     }
+ 
+     private fun clickableActionLabels(): Set<String> {
++        clickableActionLabelsCache?.let { return it }
+         val labels = LinkedHashSet<String>()
+         var visited = 0
+         fun walk(node: AccessibilityNodeInfo?) {
+@@ -2611,7 +2646,16 @@ class DetoxAccessibilityService : AccessibilityService() {
+             for (i in 0 until count) walk(runCatching { node.getChild(i) }.getOrNull())
+         }
+         runCatching { walk(rootInActiveWindow) }
+-        return labels
++        return labels.also { clickableActionLabelsCache = it }
++    }
++
++    private fun mayBeAccessibilityResetSurface(text: String): Boolean {
++        val compact = compactNoWhitespace(text.lowercase())
++        val activity = activeSurfaceClassName()?.lowercase().orEmpty()
++        return compact.contains("접근성설정초기화") ||
++            text.contains("reset accessibility settings", ignoreCase = true) ||
++            text.contains("reset all accessibility settings", ignoreCase = true) ||
++            activity.contains("resetaccessibility")
+     }
+ 
+     private fun accessibilityResetEvidence(text: String): AccessibilityResetGuardPolicy.Evidence =
+@@ -2645,12 +2689,13 @@ class DetoxAccessibilityService : AccessibilityService() {
+ 
+         var candidate = runCatching { event.source }.getOrNull() ?: return false
+         for (depth in 0 until 5) {
+-            if (subtreeHasExactSelf(candidate)) return true
+             val rect = Rect()
+             runCatching { candidate.getBoundsInScreen(rect) }
+-            // Never climb into a whole-page container: finding DetoxLock elsewhere in
+-            // the Accessibility list would incorrectly arm another app's toggle.
++            // Check the container boundary BEFORE scanning its subtree. The old order
++            // scanned the whole RecyclerView first, found the DetoxLock row elsewhere,
++            // and treated another app's Device Admin switch as a DetoxLock click.
+             if (depth > 0 && !rect.isEmpty && rect.height() > dp(220)) return false
++            if (subtreeHasExactSelf(candidate)) return true
+             candidate = runCatching { candidate.parent }.getOrNull() ?: return false
+         }
+         return false
+@@ -2658,12 +2703,20 @@ class DetoxAccessibilityService : AccessibilityService() {
+ 
+     private fun eventClickTargetsSelf(event: AccessibilityEvent?): Boolean {
+         if (event?.eventType != AccessibilityEvent.TYPE_VIEW_CLICKED || !settingsPackage()) return false
++        val sourceAvailable = runCatching { event.source != null }.getOrDefault(false)
++        if (sourceAvailable) {
++            // When Android gives us a source node, trust only the clicked row/compact
++            // ancestors. Event.text may contain every RecyclerView item on some OEMs.
++            return runCatching { clickSourceTargetsSelf(event) }.getOrDefault(false)
++        }
++
+         val aliases = protectedAliases(packageName).map(::normalizeAlias).filter { it.length >= 2 }.toSet()
+-        val eventValues = ArrayList<String>(event.text.size + 1)
+-        event.text.forEach { value -> value?.toString()?.let(eventValues::add) }
+-        event.contentDescription?.toString()?.let(eventValues::add)
+-        val exactEventValue = eventValues.any { normalizeAlias(it) in aliases }
+-        return exactEventValue || runCatching { clickSourceTargetsSelf(event) }.getOrDefault(false)
++        val normalizedValues = LinkedHashSet<String>()
++        event.text.forEach { value ->
++            value?.toString()?.let(::normalizeAlias)?.takeIf(String::isNotBlank)?.let(normalizedValues::add)
++        }
++        event.contentDescription?.toString()?.let(::normalizeAlias)?.takeIf(String::isNotBlank)?.let(normalizedValues::add)
++        return AccessibilityTargetIsolationPolicy.shouldTrustSourceLessClick(normalizedValues, aliases)
+     }
+ 
+     private fun armSelfProtectionTargetFromClick(
+@@ -2742,15 +2795,17 @@ class DetoxAccessibilityService : AccessibilityService() {
+         // The screenshot-proven execution page is blocked immediately. It also arms a
+         // short flow window because Samsung may move a following AlertDialog to the
+         // android package; evaluate both before the generic Settings-host return.
+-        val resetEvidence = accessibilityResetEvidence(t)
+-        if (AccessibilityResetGuardPolicy.isExactFlowHost(resetEvidence)) {
++        val resetEvidence = if (mayBeAccessibilityResetSurface(t)) accessibilityResetEvidence(t) else null
++        if (resetEvidence != null && AccessibilityResetGuardPolicy.isExactFlowHost(resetEvidence)) {
+             accessibilityResetFlowArmedUntilMs = now + 20_000L
+         }
+-        val resetExecutionPage = AccessibilityResetGuardPolicy.isExecutionPage(resetEvidence)
+-        val resetFinal = AccessibilityResetGuardPolicy.isFinalConfirmation(
+-            resetEvidence,
+-            flowArmed = now < accessibilityResetFlowArmedUntilMs
+-        )
++        val resetExecutionPage = resetEvidence?.let(AccessibilityResetGuardPolicy::isExecutionPage) == true
++        val resetFinal = resetEvidence?.let {
++            AccessibilityResetGuardPolicy.isFinalConfirmation(
++                it,
++                flowArmed = now < accessibilityResetFlowArmedUntilMs
++            )
++        } == true
+         val accessibilityFinal = isArmedAccessibilityFinal(t, now)
+         val adminFinal = isArmedAdminFinal(t, now)
+ 

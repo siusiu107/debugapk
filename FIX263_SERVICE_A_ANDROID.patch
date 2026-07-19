@@ -1,0 +1,154 @@
+diff --git a/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt b/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
+index 992aacc..c64d838 100644
+--- a/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
++++ b/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
+@@ -74,6 +74,12 @@ class DetoxAccessibilityService : AccessibilityService() {
+     private var treeScanNeedCacheAtMs: Long = 0L
+     private var treeScanNeedCachePkg: String? = null
+     private var treeScanNeedCache: Boolean = false
++    // Per-event Settings inspection cache. Several protection predicates inspect the
++    // same root tree; reusing those answers avoids 2-4 identical 320-node walks.
++    private var exactSelfToolbarTitleCache: Boolean? = null
++    private var interactiveToggleCache: Boolean? = null
++    private var clickableActionLabelsCache: Set<String>? = null
++    private var exactAccessibilityResetTitleCache: Boolean? = null
+ 
+     companion object {
+         private const val MAX_MERGED_TEXT_CHARS = 3_072
+@@ -250,6 +256,13 @@ class DetoxAccessibilityService : AccessibilityService() {
+ 
+ 
+ 
++    private fun resetSettingsInspectionCaches() {
++        exactSelfToolbarTitleCache = null
++        interactiveToggleCache = null
++        clickableActionLabelsCache = null
++        exactAccessibilityResetTitleCache = null
++    }
++
+     private fun maybeSyncRemoteFromAccessibilityEvent() {
+         // Accessibility events can fire dozens of times per second on Shorts/Reels,
+         // Settings, and SystemUI. Network/registry sync is not part of the UI decision
+@@ -277,7 +290,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+             info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
+             // Settings protection is event-first. Heavy non-Settings scans remain
+             // throttled below, so this does not restore the old browser/video tree jank.
+-            info.notificationTimeout = 40L
++            info.notificationTimeout = 24L
+             // Content events remain package-gated and throttled below. This is needed for
+             // Shorts/Reels/app-limit screens that
+             // change inside the same app without a WINDOW_STATE_CHANGED event.
+@@ -358,6 +371,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+             type != AccessibilityEvent.TYPE_VIEW_CLICKED
+         ) return
+ 
++        resetSettingsInspectionCaches()
+         val eventNow = SystemClock.elapsedRealtime()
+         currentPkg = event.packageName?.toString()
+         currentCls = event.className?.toString()
+@@ -1343,6 +1357,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+                 if (screenInteractive && !ProtectionRuntimePolicy.isUserFacingPaused(this@DetoxAccessibilityService) &&
+                     accessibilitySelfProtectionActive() && shouldRunCriticalSettingsFastPath()
+                 ) {
++                    resetSettingsInspectionCaches()
+                     val text = mergedText(null)
+                     currentTextLower = text
+                     handleCriticalSettings(null, text)
+@@ -1350,7 +1365,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+             } catch (t: Throwable) {
+                 ProcessCrashDiagnostics.recordHandled(this@DetoxAccessibilityService, "critical_settings_follow_up", t)
+             }
+-        }, 140L)
++        }, 100L)
+     }
+ 
+     /**
+@@ -1644,6 +1659,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+         runtimeWorkCacheAtMs = SystemClock.elapsedRealtime()
+         treeScanNeedCache = false
+         treeScanNeedCacheAtMs = 0L
++        resetSettingsInspectionCaches()
+         ProtectionNoticeLaunchGate.clear()
+         CriticalSettingsShieldState.clear()
+     }
+@@ -1821,7 +1837,12 @@ class DetoxAccessibilityService : AccessibilityService() {
+     }
+ 
+     private fun hasInteractiveToggleInRoot(): Boolean {
+-        val root = runCatching { rootInActiveWindow }.getOrNull() ?: return false
++        interactiveToggleCache?.let { return it }
++        val root = runCatching { rootInActiveWindow }.getOrNull()
++        if (root == null) {
++            interactiveToggleCache = false
++            return false
++        }
+         var visited = 0
+         fun walk(node: AccessibilityNodeInfo?): Boolean {
+             if (node == null || ++visited > MAX_ROOT_SCAN_NODES) return false
+@@ -1834,7 +1855,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+             for (i in 0 until count) if (walk(runCatching { node.getChild(i) }.getOrNull())) return true
+             return false
+         }
+-        return walk(root)
++        return walk(root).also { interactiveToggleCache = it }
+     }
+ 
+     private fun isExactOverlayPermissionSettingsSurface(t: String): Boolean =
+@@ -2018,9 +2039,17 @@ class DetoxAccessibilityService : AccessibilityService() {
+         hasExactNodeText(protectedAliases(packageName), titleAreaOnly = false)
+ 
+     private fun hasExactSelfToolbarTitle(): Boolean {
++        exactSelfToolbarTitleCache?.let { return it }
+         val aliases = protectedAliases(packageName).map(::normalizeAlias).filter { it.length >= 2 }.toSet()
+-        if (aliases.isEmpty()) return false
+-        val root = runCatching { rootInActiveWindow }.getOrNull() ?: return false
++        if (aliases.isEmpty()) {
++            exactSelfToolbarTitleCache = false
++            return false
++        }
++        val root = runCatching { rootInActiveWindow }.getOrNull()
++        if (root == null) {
++            exactSelfToolbarTitleCache = false
++            return false
++        }
+         val titleBottom = (resources.displayMetrics.heightPixels * 0.22f).toInt()
+         val pending = java.util.ArrayDeque<AccessibilityNodeInfo>()
+         pending.add(root)
+@@ -2039,7 +2068,10 @@ class DetoxAccessibilityService : AccessibilityService() {
+                         runCatching { node.text?.toString() }.getOrNull(),
+                         runCatching { node.contentDescription?.toString() }.getOrNull()
+                     )
+-                    if (values.any { raw -> raw != null && normalizeAlias(raw) in aliases }) return true
++                    if (values.any { raw -> raw != null && normalizeAlias(raw) in aliases }) {
++                        exactSelfToolbarTitleCache = true
++                        return true
++                    }
+                 }
+             }
+             val count = runCatching { node.childCount }.getOrDefault(0)
+@@ -2047,6 +2079,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+                 runCatching { node.getChild(i) }.getOrNull()?.let(pending::addLast)
+             }
+         }
++        exactSelfToolbarTitleCache = false
+         return false
+     }
+ 
+@@ -2058,10 +2091,13 @@ class DetoxAccessibilityService : AccessibilityService() {
+         titleAreaOnly = true
+     )
+ 
+-    private fun hasExactAccessibilityResetTitle(): Boolean = hasExactNodeText(
+-        setOf("접근성 설정 초기화", "Reset accessibility settings", "Reset all accessibility settings"),
+-        titleAreaOnly = true
+-    )
++    private fun hasExactAccessibilityResetTitle(): Boolean {
++        exactAccessibilityResetTitleCache?.let { return it }
++        return hasExactNodeText(
++            setOf("접근성 설정 초기화", "Reset accessibility settings", "Reset all accessibility settings"),
++            titleAreaOnly = true
++        ).also { exactAccessibilityResetTitleCache = it }
++    }
+ 
+     private fun exactProtectedTargetMentionedInText(t: String): String? {
+         val compact = normalizeAlias(t)

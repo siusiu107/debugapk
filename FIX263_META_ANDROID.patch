@@ -1,0 +1,110 @@
+diff --git a/FIX263_VALIDATION.txt b/FIX263_VALIDATION.txt
+new file mode 100644
+index 0000000..767f84e
+--- /dev/null
++++ b/FIX263_VALIDATION.txt
+@@ -0,0 +1,7 @@
++FIX263 local validation
++- Pure Kotlin target-isolation policy compile/run: PASS (FIX263_POLICY_OK)
++- Source-less single exact DetoxLock event: BLOCK
++- Source-less list-container event containing DetoxLock + another app: ALLOW
++- Empty/ambiguous source-less event: ALLOW
++- FIX263 patch dry-run/apply against FIX262 source: PASS
++- Full Android Gradle build: delegated to GitHub Actions because local environment cannot resolve services.gradle.org
+diff --git a/README_FIX263_DEVICE_ADMIN_TARGET_SPEED_KR.md b/README_FIX263_DEVICE_ADMIN_TARGET_SPEED_KR.md
+new file mode 100644
+index 0000000..b873fbf
+--- /dev/null
++++ b/README_FIX263_DEVICE_ADMIN_TARGET_SPEED_KR.md
+@@ -0,0 +1,23 @@
++# FIX263 (v3.0.21) 변경 사항
++
++## 다른 앱 기기 관리자 해제 오탐 수정
++
++- 기기 관리자 목록에서 클릭한 노드의 부모를 탐색할 때, 전체 RecyclerView를 먼저 훑던 순서 오류를 수정했습니다.
++- 이제 클릭한 스위치/행과 높이 220dp 이하의 가까운 부모 범위에서만 DetoxLock 이름을 찾습니다.
++- 전체 목록 컨테이너에 DetoxLock 행이 같이 보이더라도 다른 앱의 기기 관리자 켜기·끄기·해제를 차단하지 않습니다.
++- Android가 클릭 source를 주는 경우 `event.text`의 전체 목록 문자열은 대상 증거로 사용하지 않습니다.
++- source가 없는 예외 상황도 이벤트 값이 정확히 하나이고 그 값이 DetoxLock 이름과 정확히 일치할 때만 DetoxLock 클릭으로 인정합니다.
++- DetoxLock 상세 화면이 아닌데 이전 클릭 상태가 남아 있는 경우, 그 상태만으로 다른 앱의 기기 관리자 상세 화면을 차단하지 않습니다.
++
++## 반응 속도 개선
++
++- 같은 접근성 이벤트에서 반복되던 상단 제목·토글·클릭 버튼 트리 탐색 결과를 재사용합니다.
++- 접근성 설정 초기화 화면 후보가 아닌 일반 설정 화면에서는 초기화 전용 추가 트리 탐색을 실행하지 않습니다.
++- 일반 목록에서 DetoxLock 행을 누르지 않은 경우 접근성/기기 관리자 목록 판별의 추가 탐색을 즉시 생략합니다.
++- 접근성 이벤트 알림 대기 시간을 40ms에서 24ms로 줄였습니다.
++- One UI 설정 전환 보조 확인 시간을 140ms에서 100ms로 줄였습니다.
++
++## 버전
++
++- versionName: 3.0.21
++- versionCode: 51
+diff --git a/app/build.gradle b/app/build.gradle
+index b5b5a0a..4a44a72 100644
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -11,8 +11,8 @@ android {
+         applicationId "com.siustudio.detoxlock"
+         minSdk 26
+         targetSdk 35
+-        versionCode 50
+-        versionName "3.0.20"
++        versionCode 51
++        versionName "3.0.21"
+         resourceConfigurations += ['ko']
+     }
+ 
+diff --git a/app/src/main/java/com/siustudio/detoxlock/AccessibilityTargetIsolationPolicy.kt b/app/src/main/java/com/siustudio/detoxlock/AccessibilityTargetIsolationPolicy.kt
+index ef0dc8f..0caf71c 100644
+--- a/app/src/main/java/com/siustudio/detoxlock/AccessibilityTargetIsolationPolicy.kt
++++ b/app/src/main/java/com/siustudio/detoxlock/AccessibilityTargetIsolationPolicy.kt
+@@ -20,4 +20,12 @@ object AccessibilityTargetIsolationPolicy {
+      */
+     fun shouldBlockDetail(evidence: Evidence): Boolean =
+         evidence.interactiveOffAction && evidence.detailSurface && evidence.exactSelfTitle
++
++    /**
++     * OEM Settings sometimes omits event.source and puts every visible list label in
++     * event.text. Trust that fallback only when there is exactly one normalized value
++     * and that value is an exact DetoxLock alias.
++     */
++    fun shouldTrustSourceLessClick(normalizedValues: Set<String>, normalizedAliases: Set<String>): Boolean =
++        normalizedValues.size == 1 && normalizedValues.first() in normalizedAliases
+ }
+diff --git a/app/src/main/res/xml/accessibility_config.xml b/app/src/main/res/xml/accessibility_config.xml
+index 8c3d309..81f3f95 100644
+--- a/app/src/main/res/xml/accessibility_config.xml
++++ b/app/src/main/res/xml/accessibility_config.xml
+@@ -1,7 +1,7 @@
+ <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged|typeWindowContentChanged|typeViewClicked"
+     android:accessibilityFeedbackType="feedbackGeneric"
+-    android:notificationTimeout="40"
++    android:notificationTimeout="24"
+     android:canRetrieveWindowContent="true"
+     android:canRequestFilterKeyEvents="true"
+     android:accessibilityFlags="flagRetrieveInteractiveWindows|flagRequestFilterKeyEvents" />
+diff --git a/app/src/test/java/com/siustudio/detoxlock/ProtectionSurfacePoliciesTest.kt b/app/src/test/java/com/siustudio/detoxlock/ProtectionSurfacePoliciesTest.kt
+index 249078c..a0da648 100644
+--- a/app/src/test/java/com/siustudio/detoxlock/ProtectionSurfacePoliciesTest.kt
++++ b/app/src/test/java/com/siustudio/detoxlock/ProtectionSurfacePoliciesTest.kt
+@@ -79,6 +79,15 @@ class ProtectionSurfacePoliciesTest {
+         // A stale DetoxLock click latch must never make another app's detail page
+         // blockable; only the current page's exact DetoxLock title is sufficient.
+         assertFalse(AccessibilityTargetIsolationPolicy.shouldBlockDetail(otherAppDetail))
++
++        val aliases = setOf("detoxlock", "디톡스락")
++        assertTrue(AccessibilityTargetIsolationPolicy.shouldTrustSourceLessClick(setOf("detoxlock"), aliases))
++        // A list-container event that includes DetoxLock plus another app is never a
++        // trustworthy DetoxLock click target.
++        assertFalse(AccessibilityTargetIsolationPolicy.shouldTrustSourceLessClick(
++            setOf("detoxlock", "otheradminapp"), aliases
++        ))
++        assertFalse(AccessibilityTargetIsolationPolicy.shouldTrustSourceLessClick(emptySet(), aliases))
+     }
+ 
+     @Test
+diff --git a/gradlew b/gradlew
+old mode 100644
+new mode 100755
