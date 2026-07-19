@@ -51,6 +51,34 @@ index 5275a1c..ea5f3b1 100644
 -</manifest>
 \ No newline at end of file
 +</manifest>
+diff --git a/app/src/main/java/com/siustudio/detoxlock/AccessibilityTargetIsolationPolicy.kt b/app/src/main/java/com/siustudio/detoxlock/AccessibilityTargetIsolationPolicy.kt
+new file mode 100644
+index 0000000..38fed20
+--- /dev/null
++++ b/app/src/main/java/com/siustudio/detoxlock/AccessibilityTargetIsolationPolicy.kt
+@@ -0,0 +1,22 @@
++package com.siustudio.detoxlock
++
++/** Pure target-isolation rules for Accessibility settings protection. */
++object AccessibilityTargetIsolationPolicy {
++    data class Evidence(
++        val listSurface: Boolean,
++        val clickedExactSelf: Boolean,
++        val detailSurface: Boolean,
++        val exactSelfTitle: Boolean,
++        val armedFromSelfClick: Boolean,
++        val interactiveOffAction: Boolean
++    )
++
++    /** A list remains usable; only the actual DetoxLock row click is routed back. */
++    fun shouldBlockList(evidence: Evidence): Boolean =
++        evidence.listSurface && evidence.clickedExactSelf
++
++    /** Another app's detail screen can never inherit protection from words elsewhere. */
++    fun shouldBlockDetail(evidence: Evidence): Boolean =
++        evidence.interactiveOffAction && evidence.detailSurface &&
++            (evidence.exactSelfTitle || evidence.armedFromSelfClick)
++}
 diff --git a/app/src/main/java/com/siustudio/detoxlock/AppCoachTutorial.kt b/app/src/main/java/com/siustudio/detoxlock/AppCoachTutorial.kt
 index 005f052..1ff1236 100644
 --- a/app/src/main/java/com/siustudio/detoxlock/AppCoachTutorial.kt
@@ -3424,6 +3452,308 @@ index ed44f3c..a30f3cc 100644
          runCatching { LockUiRecoveryCoordinator.cancelPending(clearShield = true) }
          runCatching { GongshinHomeRecoveryCoordinator.cancel() }
          runCatching { GongshinHomePreparation.cancel(ctx, "pin_admin_session", returnHome = false) }
+diff --git a/app/src/main/java/com/siustudio/detoxlock/ProtectionNotice.kt b/app/src/main/java/com/siustudio/detoxlock/ProtectionNotice.kt
+new file mode 100644
+index 0000000..5facf47
+--- /dev/null
++++ b/app/src/main/java/com/siustudio/detoxlock/ProtectionNotice.kt
+@@ -0,0 +1,158 @@
++package com.siustudio.detoxlock
++
++/** User-facing, one-shot notices shown after a protected system screen is closed. */
++enum class ProtectionNoticeKind {
++    ACCESSIBILITY,
++    OVERLAY_PERMISSION,
++    SAFE_MODE,
++    APP_DELETE,
++    DEVICE_ADMIN,
++    VPN
++}
++
++data class ProtectionNoticeCopy(
++    val badge: String,
++    val title: String,
++    val subtitle: String,
++    val detail: String
++)
++
++object ProtectionNoticeText {
++    fun forKind(kind: ProtectionNoticeKind): ProtectionNoticeCopy = when (kind) {
++        ProtectionNoticeKind.ACCESSIBILITY -> ProtectionNoticeCopy(
++            badge = "접근성 보호",
++            title = "접근성 변경을 차단했어요",
++            subtitle = "보호가 적용 중인 동안에는 DetoxLock 접근성을 끌 수 없어요.",
++            detail = "접근성 끄기와 접근성 설정 전체 초기화 화면에서 뒤로 이동했습니다. 일반 접근성 설정은 그대로 사용할 수 있어요."
++        )
++        ProtectionNoticeKind.OVERLAY_PERMISSION -> ProtectionNoticeCopy(
++            badge = "권한 보호",
++            title = "다른 앱 위에 표시 변경을 차단했어요",
++            subtitle = "보호 화면에 필요한 권한은 실행 중에 해제할 수 없어요.",
++            detail = "해당 설정 화면에서 뒤로 이동했습니다. 다른 앱의 일반 설정에는 영향을 주지 않아요."
++        )
++        ProtectionNoticeKind.SAFE_MODE -> ProtectionNoticeCopy(
++            badge = "시스템 보호",
++            title = "안전모드 진입을 차단했어요",
++            subtitle = "현재 잠금 또는 제한을 우회하는 안전모드 진입은 사용할 수 없어요.",
++            detail = "실제 시스템 전원 메뉴의 안전모드 화면을 확인한 뒤 빠르게 두 번 뒤로 이동했습니다."
++        )
++        ProtectionNoticeKind.APP_DELETE -> ProtectionNoticeCopy(
++            badge = "앱 보호",
++            title = "앱 삭제를 차단했어요",
++            subtitle = "보호가 적용 중인 동안에는 DetoxLock을 삭제하거나 데이터를 지울 수 없어요.",
++            detail = "삭제 또는 데이터 제거 화면에서 뒤로 이동했습니다. 삭제가 필요하면 DetoxLock 안의 삭제 준비 절차를 이용해주세요."
++        )
++        ProtectionNoticeKind.DEVICE_ADMIN -> ProtectionNoticeCopy(
++            badge = "관리자 보호",
++            title = "기기 관리자 변경을 차단했어요",
++            subtitle = "보호가 적용 중인 동안에는 DetoxLock 관리자 권한을 끌 수 없어요.",
++            detail = "기기 관리자 해제 화면에서 뒤로 이동했습니다. 권한 해제가 필요하면 앱 안의 안내 절차를 이용해주세요."
++        )
++        ProtectionNoticeKind.VPN -> ProtectionNoticeCopy(
++            badge = "VPN 보호",
++            title = "VPN 변경을 차단했어요",
++            subtitle = "차단에 사용 중인 VPN은 보호가 끝나기 전까지 해제할 수 없어요.",
++            detail = "VPN 해제 화면에서 뒤로 이동하고 필요한 보호 연결을 다시 확인했습니다."
++        )
++    }
++}
++
++data class ProtectionBackPlan(
++    val backCount: Int,
++    val backIntervalMs: Long,
++    val noticeDelayMs: Long
++)
++
++/** One protected surface owns one bounded BACK sequence and one notice launch. */
++object ProtectionRoutePlan {
++    fun forKind(kind: ProtectionNoticeKind): ProtectionBackPlan = when (kind) {
++        ProtectionNoticeKind.SAFE_MODE -> ProtectionBackPlan(
++            backCount = 2,
++            backIntervalMs = 55L,
++            noticeDelayMs = 125L
++        )
++        else -> ProtectionBackPlan(
++            backCount = 1,
++            backIntervalMs = 0L,
++            noticeDelayMs = 220L
++        )
++    }
++}
++
++/**
++ * Process-local launch ownership. One protected surface entry may create at most one
++ * notice. The same token stays consumed after dismissal so stale Accessibility events
++ * cannot immediately reopen the Activity; a new window/click entry receives a new token.
++ */
++object ProtectionNoticeLaunchGate {
++    private var reservedToken: String? = null
++    private var lastHandledToken: String? = null
++    private var passiveSuppressedKind: ProtectionNoticeKind? = null
++    private var pending: Boolean = false
++    private var visible: Boolean = false
++
++    @Synchronized
++    fun tryReserve(token: String): Boolean {
++        if (token.isBlank() || token == lastHandledToken || pending || visible) return false
++        reservedToken = token
++        lastHandledToken = token
++        pending = true
++        visible = false
++        return true
++    }
++
++    @Synchronized
++    fun isReserved(token: String): Boolean = reservedToken == token && (pending || visible)
++
++    @Synchronized
++    fun isPending(token: String): Boolean = reservedToken == token && pending
++
++    @Synchronized
++    fun markVisible(token: String) {
++        if (reservedToken != token) return
++        pending = false
++        visible = true
++    }
++
++    @Synchronized
++    fun markDismissed(token: String, kind: ProtectionNoticeKind) {
++        if (reservedToken == token) {
++            reservedToken = null
++            pending = false
++            visible = false
++            // Finishing our Activity exposes the Settings page that was immediately
++            // below it and creates another WINDOW_STATE_CHANGED event. Keep that
++            // passive hand-off from opening the same notice again. A real click on a
++            // system surface clears this latch before the next protection decision.
++            passiveSuppressedKind = kind
++        }
++    }
++
++    @Synchronized
++    fun shouldSuppressPassiveReentry(kind: ProtectionNoticeKind): Boolean =
++        passiveSuppressedKind == kind
++
++    @Synchronized
++    fun noteExternalInteraction() {
++        passiveSuppressedKind = null
++    }
++
++    @Synchronized
++    fun releaseFailed(token: String) {
++        if (reservedToken != token) return
++        reservedToken = null
++        pending = false
++        visible = false
++        if (lastHandledToken == token) lastHandledToken = null
++    }
++
++    @Synchronized
++    fun clear() {
++        reservedToken = null
++        lastHandledToken = null
++        passiveSuppressedKind = null
++        pending = false
++        visible = false
++    }
++}
+diff --git a/app/src/main/java/com/siustudio/detoxlock/ProtectionNoticeActivity.kt b/app/src/main/java/com/siustudio/detoxlock/ProtectionNoticeActivity.kt
+new file mode 100644
+index 0000000..002dd03
+--- /dev/null
++++ b/app/src/main/java/com/siustudio/detoxlock/ProtectionNoticeActivity.kt
+@@ -0,0 +1,132 @@
++package com.siustudio.detoxlock
++
++import android.content.Context
++import android.content.Intent
++import android.os.Bundle
++import android.view.View
++import androidx.appcompat.app.AppCompatActivity
++import com.siustudio.detoxlock.databinding.ActivityAppLimitBlockedBinding
++
++/** Clean, single-instance notice used by every protected system-surface route. */
++class ProtectionNoticeActivity : AppCompatActivity() {
++    private lateinit var b: ActivityAppLimitBlockedBinding
++    private var noticeToken: String = ""
++    private var kind: ProtectionNoticeKind = ProtectionNoticeKind.ACCESSIBILITY
++    private var dismissed: Boolean = false
++
++    override fun onCreate(savedInstanceState: Bundle?) {
++        super.onCreate(savedInstanceState)
++        RemoteSafetyGate.syncAsync(this)
++        if (RemoteSafetyGate.finishIfDisabled(this)) {
++            releaseReservation(intent)
++            return
++        }
++        if (ProtectionRuntimePolicy.isUserFacingPaused(this)) {
++            releaseReservation(intent)
++            finish()
++            return
++        }
++
++        b = ActivityAppLimitBlockedBinding.inflate(layoutInflater)
++        setContentView(b.root)
++        SystemBarSafeArea.keepContentInsideSystemBars(this)
++        bindIntent(intent)
++        b.btnHome.text = "확인"
++        b.btnHome.setOnClickListener { dismissNotice() }
++    }
++
++    override fun onNewIntent(intent: Intent?) {
++        super.onNewIntent(intent)
++        if (intent != null) {
++            setIntent(intent)
++            bindIntent(intent)
++        }
++    }
++
++    private fun bindIntent(intent: Intent?) {
++        noticeToken = intent?.getStringExtra(EXTRA_TOKEN).orEmpty()
++        kind = runCatching {
++            ProtectionNoticeKind.valueOf(intent?.getStringExtra(EXTRA_KIND).orEmpty())
++        }.getOrDefault(ProtectionNoticeKind.ACCESSIBILITY)
++        if (RemoteSafetyGate.isMasterStopActive(this) || ProtectionRuntimePolicy.isUserFacingPaused(this)) {
++            ProtectionNoticeLaunchGate.releaseFailed(noticeToken)
++            finish()
++            return
++        }
++        if (noticeToken.isBlank() || !ProtectionNoticeLaunchGate.isReserved(noticeToken)) {
++            finish()
++            return
++        }
++        dismissed = false
++        b.root.visibility = View.VISIBLE
++        b.btnHome.isEnabled = true
++        CriticalSettingsOverlay.hideFullIfKey(
++            "protection_notice_fallback:$noticeToken",
++            force = true
++        )
++        ProtectionNoticeLaunchGate.markVisible(noticeToken)
++        val copy = ProtectionNoticeText.forKind(kind)
++        b.tvReason.text = copy.badge
++        b.tvTitle.text = copy.title
++        b.tvSub.text = copy.subtitle
++        b.tvDetail.text = copy.detail
++    }
++
++    private fun dismissNotice() {
++        if (dismissed) return
++        dismissed = true
++        b.btnHome.isEnabled = false
++        b.root.visibility = View.GONE
++        ProtectionNoticeLaunchGate.markDismissed(noticeToken, kind)
++        // Hide synchronously so even an OEM-delayed task removal cannot leave the
++        // confirmed card visible. finish() is idempotent and is kept as a fallback.
++        runCatching { finishAndRemoveTask() }
++        if (!isFinishing) finish()
++    }
++
++    private fun releaseReservation(intent: Intent?) {
++        val token = intent?.getStringExtra(EXTRA_TOKEN).orEmpty()
++        if (token.isNotBlank()) ProtectionNoticeLaunchGate.releaseFailed(token)
++    }
++
++    override fun onDestroy() {
++        if (!isChangingConfigurations && !dismissed && noticeToken.isNotBlank()) {
++            ProtectionNoticeLaunchGate.markDismissed(noticeToken, kind)
++        }
++        super.onDestroy()
++    }
++
++    @Deprecated("Deprecated in Java")
++    override fun onBackPressed() = dismissNotice()
++
++    companion object {
++        private const val EXTRA_KIND = "protection_notice_kind"
++        private const val EXTRA_TOKEN = "protection_notice_token"
++
++        fun launchReserved(context: Context, kind: ProtectionNoticeKind, token: String): Boolean {
++            if (!ProtectionNoticeLaunchGate.isReserved(token)) return false
++            val intent = Intent(context, ProtectionNoticeActivity::class.java).apply {
++                putExtra(EXTRA_KIND, kind.name)
++                putExtra(EXTRA_TOKEN, token)
++                addFlags(
++                    Intent.FLAG_ACTIVITY_NEW_TASK or
++                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
++                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
++                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
++                )
++            }
++            return runCatching {
++                context.startActivity(intent)
++                true
++            }.getOrElse {
++                ProtectionNoticeLaunchGate.releaseFailed(token)
++                false
++            }
++        }
++
++        fun showNow(context: Context, kind: ProtectionNoticeKind, token: String): Boolean {
++            if (!ProtectionNoticeLaunchGate.tryReserve(token)) return false
++            return launchReserved(context, kind, token)
++        }
++    }
++}
 diff --git a/app/src/main/java/com/siustudio/detoxlock/ProtectionRuntimePolicy.kt b/app/src/main/java/com/siustudio/detoxlock/ProtectionRuntimePolicy.kt
 index 0cb00ff..58d50f0 100644
 --- a/app/src/main/java/com/siustudio/detoxlock/ProtectionRuntimePolicy.kt
@@ -4043,6 +4373,93 @@ index 658ae87..4b2e884 100644
 +        finish()
      }
  }
+diff --git a/app/src/main/java/com/siustudio/detoxlock/ShortFormPlatformAdapter.kt b/app/src/main/java/com/siustudio/detoxlock/ShortFormPlatformAdapter.kt
+new file mode 100644
+index 0000000..48ac24c
+--- /dev/null
++++ b/app/src/main/java/com/siustudio/detoxlock/ShortFormPlatformAdapter.kt
+@@ -0,0 +1,56 @@
++package com.siustudio.detoxlock
++
++import android.view.LayoutInflater
++import android.view.ViewGroup
++import androidx.recyclerview.widget.RecyclerView
++import com.siustudio.detoxlock.databinding.RowShortFormPlatformBinding
++
++class ShortFormPlatformAdapter(
++    private val onEnabledChanged: (ShortFormPolicy.Platform, Boolean) -> Unit,
++    private val onDailyLimit: (ShortFormPolicy.Platform) -> Unit,
++    private val onTimeWindow: (ShortFormPolicy.Platform) -> Unit
++) : RecyclerView.Adapter<ShortFormPlatformAdapter.Holder>() {
++
++    data class Row(
++        val platform: ShortFormPolicy.Platform,
++        val enabled: Boolean,
++        val summary: String,
++        val editable: Boolean
++    )
++
++    private var rows: List<Row> = emptyList()
++
++    inner class Holder(val binding: RowShortFormPlatformBinding) :
++        RecyclerView.ViewHolder(binding.root)
++
++    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder = Holder(
++        RowShortFormPlatformBinding.inflate(LayoutInflater.from(parent.context), parent, false)
++    )
++
++    override fun getItemCount(): Int = rows.size
++
++    override fun onBindViewHolder(holder: Holder, position: Int) {
++        val row = rows[position]
++        with(holder.binding) {
++            swPlatform.setOnCheckedChangeListener(null)
++            swPlatform.text = row.platform.label
++            swPlatform.isChecked = row.enabled
++            swPlatform.isEnabled = row.editable
++            swPlatform.setOnCheckedChangeListener { _, checked ->
++                onEnabledChanged(row.platform, checked)
++            }
++            tvMeta.text = row.summary
++            btnDailyLimit.isEnabled = row.editable
++            btnTimeWindow.isEnabled = row.editable
++            btnDailyLimit.setOnClickListener { onDailyLimit(row.platform) }
++            btnTimeWindow.setOnClickListener { onTimeWindow(row.platform) }
++            root.alpha = if (row.editable) 1f else 0.58f
++            root.setOnClickListener { if (row.editable) onDailyLimit(row.platform) }
++        }
++    }
++
++    fun submit(value: List<Row>) {
++        rows = value
++        notifyDataSetChanged()
++    }
++}
+diff --git a/app/src/main/java/com/siustudio/detoxlock/ShortFormPlatformDecision.kt b/app/src/main/java/com/siustudio/detoxlock/ShortFormPlatformDecision.kt
+new file mode 100644
+index 0000000..64c26f2
+--- /dev/null
++++ b/app/src/main/java/com/siustudio/detoxlock/ShortFormPlatformDecision.kt
+@@ -0,0 +1,19 @@
++package com.siustudio.detoxlock
++
++/** Pure per-platform decision used to prove that usage/rules never leak across platforms. */
++object ShortFormPlatformDecision {
++    data class Rule(
++        val enabled: Boolean,
++        val alwaysBlock: Boolean,
++        val timeLimitEnabled: Boolean,
++        val limitMs: Long,
++        val usedMs: Long,
++        val windowActive: Boolean
++    )
++
++    fun limitExceeded(rule: Rule): Boolean =
++        rule.enabled && rule.timeLimitEnabled && rule.usedMs >= rule.limitMs.coerceAtLeast(1L)
++
++    fun shouldBlock(rule: Rule): Boolean =
++        rule.enabled && (rule.alwaysBlock || rule.windowActive || limitExceeded(rule))
++}
 diff --git a/app/src/main/java/com/siustudio/detoxlock/ShortFormPolicy.kt b/app/src/main/java/com/siustudio/detoxlock/ShortFormPolicy.kt
 index 87cd09e..f08fcbf 100644
 --- a/app/src/main/java/com/siustudio/detoxlock/ShortFormPolicy.kt
@@ -5144,6 +5561,80 @@ index 8bc6d88..0000000
 -        android:text="@string/safe_mode_btn"
 -        android:layout_marginTop="8dp"/>
 -</LinearLayout>
+diff --git a/app/src/main/res/layout/row_short_form_platform.xml b/app/src/main/res/layout/row_short_form_platform.xml
+new file mode 100644
+index 0000000..2429bd6
+--- /dev/null
++++ b/app/src/main/res/layout/row_short_form_platform.xml
+@@ -0,0 +1,68 @@
++<?xml version="1.0" encoding="utf-8"?>
++<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:app="http://schemas.android.com/apk/res-auto"
++    android:layout_width="match_parent"
++    android:layout_height="wrap_content"
++    android:layout_marginBottom="8dp"
++    app:cardBackgroundColor="#F9FAFB"
++    app:cardCornerRadius="16dp"
++    app:cardElevation="0dp"
++    app:strokeColor="#E5E7EB"
++    app:strokeWidth="1dp">
++
++    <LinearLayout
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:orientation="vertical"
++        android:padding="12dp">
++
++        <com.google.android.material.switchmaterial.SwitchMaterial
++            android:id="@+id/swPlatform"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:minHeight="40dp"
++            android:textColor="#111827"
++            android:textSize="15sp"
++            android:textStyle="bold" />
++
++        <TextView
++            android:id="@+id/tvMeta"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:layout_marginTop="2dp"
++            android:textColor="#6B7280"
++            android:textSize="12sp" />
++
++        <LinearLayout
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:layout_marginTop="8dp"
++            android:orientation="horizontal">
++
++            <com.google.android.material.button.MaterialButton
++                android:id="@+id/btnDailyLimit"
++                style="@style/Widget.DetoxLock.Button.Outlined"
++                android:layout_width="0dp"
++                android:layout_height="40dp"
++                android:layout_weight="1"
++                android:minHeight="0dp"
++                android:paddingTop="0dp"
++                android:paddingBottom="0dp"
++                android:text="하루 제한"
++                android:textSize="12sp" />
++
++            <com.google.android.material.button.MaterialButton
++                android:id="@+id/btnTimeWindow"
++                style="@style/Widget.DetoxLock.Button.Outlined"
++                android:layout_width="0dp"
++                android:layout_height="40dp"
++                android:layout_marginStart="8dp"
++                android:layout_weight="1"
++                android:minHeight="0dp"
++                android:paddingTop="0dp"
++                android:paddingBottom="0dp"
++                android:text="시간대 잠금"
++                android:textSize="12sp" />
++        </LinearLayout>
++    </LinearLayout>
++</com.google.android.material.card.MaterialCardView>
 diff --git a/app/src/main/res/xml/accessibility_config.xml b/app/src/main/res/xml/accessibility_config.xml
 index 2bc565e..8c3d309 100644
 --- a/app/src/main/res/xml/accessibility_config.xml
