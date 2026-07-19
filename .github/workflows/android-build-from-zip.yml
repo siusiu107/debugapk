@@ -85,7 +85,12 @@ jobs:
         run: |
           set -euo pipefail
           cd "$PROJECT_DIR"
-          for PATCH_NAME in FIX261_ANDROID.patch FIX262_ANDROID.patch; do
+          for PATCH_NAME in \
+            FIX261_ANDROID.patch \
+            FIX262_ANDROID.patch \
+            FIX263_META_ANDROID.patch \
+            FIX263_SERVICE_A_ANDROID.patch \
+            FIX263_SERVICE_B_ANDROID.patch; do
             PATCH_FILE="$GITHUB_WORKSPACE/$PATCH_NAME"
             if [[ ! -f "$PATCH_FILE" ]]; then
               echo "Skipping missing patch: $PATCH_NAME"
@@ -120,13 +125,13 @@ jobs:
         shell: bash
         run: chmod +x "$PROJECT_DIR/gradlew"
 
-      - name: Build debug APK
+      - name: Test and build debug APK
         id: gradle_build
         shell: bash
         run: |
           set +e
           cd "$PROJECT_DIR"
-          ./gradlew --no-daemon assembleDebug 2>&1 | tee "$GITHUB_WORKSPACE/FIX262_BUILD.log"
+          ./gradlew --no-daemon testDebugUnitTest assembleDebug 2>&1 | tee "$GITHUB_WORKSPACE/FIX263_BUILD.log"
           BUILD_EXIT=${PIPESTATUS[0]}
           echo "exit_code=$BUILD_EXIT" >> "$GITHUB_OUTPUT"
           exit 0
@@ -142,7 +147,7 @@ jobs:
           echo "APK output:"
           ls -la "$GITHUB_WORKSPACE/_apk_output"
 
-      - name: Publish FIX262 build result to repository
+      - name: Publish FIX263 build result to repository
         if: always()
         shell: bash
         env:
@@ -151,33 +156,33 @@ jobs:
           set -euo pipefail
           BUILD_EXIT="${BUILD_EXIT:-1}"
           mkdir -p "$GITHUB_WORKSPACE/artifacts"
-          if [[ -f "$GITHUB_WORKSPACE/FIX262_BUILD.log" ]]; then
-            cp "$GITHUB_WORKSPACE/FIX262_BUILD.log" "$GITHUB_WORKSPACE/artifacts/FIX262_BUILD.log"
+          if [[ -f "$GITHUB_WORKSPACE/FIX263_BUILD.log" ]]; then
+            cp "$GITHUB_WORKSPACE/FIX263_BUILD.log" "$GITHUB_WORKSPACE/artifacts/FIX263_BUILD.log"
           else
-            echo "Build did not reach the Gradle logging step." > "$GITHUB_WORKSPACE/artifacts/FIX262_BUILD.log"
+            echo "Build did not reach the Gradle logging step." > "$GITHUB_WORKSPACE/artifacts/FIX263_BUILD.log"
           fi
           if [[ "$BUILD_EXIT" == "0" ]]; then
             APK_FILE="$(find "$GITHUB_WORKSPACE/_apk_output" -maxdepth 1 -type f -name '*.apk' | sort | head -1)"
             if [[ -z "$APK_FILE" ]]; then
-              echo "Build reported success but no APK was collected." > "$GITHUB_WORKSPACE/artifacts/FIX262_BUILD_STATUS.txt"
+              echo "Build reported success but no APK was collected." > "$GITHUB_WORKSPACE/artifacts/FIX263_BUILD_STATUS.txt"
               BUILD_EXIT=1
             else
-              cp "$APK_FILE" "$GITHUB_WORKSPACE/artifacts/DetoxLock_FIX262_v3.0.20_debug.apk"
-              echo "SUCCESS commit=$GITHUB_SHA" > "$GITHUB_WORKSPACE/artifacts/FIX262_BUILD_STATUS.txt"
+              cp "$APK_FILE" "$GITHUB_WORKSPACE/artifacts/DetoxLock_FIX263_v3.0.21_debug.apk"
+              echo "SUCCESS commit=$GITHUB_SHA" > "$GITHUB_WORKSPACE/artifacts/FIX263_BUILD_STATUS.txt"
             fi
           else
-            echo "FAILED commit=$GITHUB_SHA exit=$BUILD_EXIT" > "$GITHUB_WORKSPACE/artifacts/FIX262_BUILD_STATUS.txt"
+            echo "FAILED commit=$GITHUB_SHA exit=$BUILD_EXIT" > "$GITHUB_WORKSPACE/artifacts/FIX263_BUILD_STATUS.txt"
           fi
 
           cd "$GITHUB_WORKSPACE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/FIX262_BUILD.log artifacts/FIX262_BUILD_STATUS.txt
-          if [[ -f artifacts/DetoxLock_FIX262_v3.0.20_debug.apk ]]; then
-            git add artifacts/DetoxLock_FIX262_v3.0.20_debug.apk
+          git add artifacts/FIX263_BUILD.log artifacts/FIX263_BUILD_STATUS.txt
+          if [[ -f artifacts/DetoxLock_FIX263_v3.0.21_debug.apk ]]; then
+            git add artifacts/DetoxLock_FIX263_v3.0.21_debug.apk
           fi
           if ! git diff --cached --quiet; then
-            git commit -m "Publish FIX262 debug build result"
+            git commit -m "Publish FIX263 debug build result"
             git push
           fi
           if [[ "$BUILD_EXIT" != "0" ]]; then exit "$BUILD_EXIT"; fi
@@ -186,6 +191,6 @@ jobs:
         if: steps.gradle_build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: DetoxLock-FIX262-debug-apk
+          name: DetoxLock-FIX263-debug-apk
           path: _apk_output/*.apk
           if-no-files-found: error
