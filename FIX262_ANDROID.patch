@@ -1,0 +1,348 @@
+diff --git a/app/build.gradle b/app/build.gradle
+index cbf0c5e..b5b5a0a 100644
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -11,8 +11,8 @@ android {
+         applicationId "com.siustudio.detoxlock"
+         minSdk 26
+         targetSdk 35
+-        versionCode 49
+-        versionName "3.0.19"
++        versionCode 50
++        versionName "3.0.20"
+         resourceConfigurations += ['ko']
+     }
+ 
+diff --git a/app/src/main/java/com/siustudio/detoxlock/AccessibilityTargetIsolationPolicy.kt b/app/src/main/java/com/siustudio/detoxlock/AccessibilityTargetIsolationPolicy.kt
+index 38fed20..ef0dc8f 100644
+--- a/app/src/main/java/com/siustudio/detoxlock/AccessibilityTargetIsolationPolicy.kt
++++ b/app/src/main/java/com/siustudio/detoxlock/AccessibilityTargetIsolationPolicy.kt
+@@ -7,7 +7,6 @@ object AccessibilityTargetIsolationPolicy {
+         val clickedExactSelf: Boolean,
+         val detailSurface: Boolean,
+         val exactSelfTitle: Boolean,
+-        val armedFromSelfClick: Boolean,
+         val interactiveOffAction: Boolean
+     )
+ 
+@@ -15,8 +14,10 @@ object AccessibilityTargetIsolationPolicy {
+     fun shouldBlockList(evidence: Evidence): Boolean =
+         evidence.listSurface && evidence.clickedExactSelf
+ 
+-    /** Another app's detail screen can never inherit protection from words elsewhere. */
++    /**
++     * Another app's detail screen can never inherit protection from a previous click.
++     * The current detail page itself must expose an exact DetoxLock title.
++     */
+     fun shouldBlockDetail(evidence: Evidence): Boolean =
+-        evidence.interactiveOffAction && evidence.detailSurface &&
+-            (evidence.exactSelfTitle || evidence.armedFromSelfClick)
++        evidence.interactiveOffAction && evidence.detailSurface && evidence.exactSelfTitle
+ }
+diff --git a/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt b/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
+index 7ddacf4..992aacc 100644
+--- a/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
++++ b/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
+@@ -59,6 +59,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+     private var lastPowerKeyMs: Long = 0L
+     private var powerMenuDetectedUntilMs: Long = 0L
+     private var safeModeFollowUpScheduled: Boolean = false
++    private var lastSafeModeBackBurstMs: Long = 0L
+     private var criticalSettingsFollowUpScheduled: Boolean = false
+     private var protectionSurfaceSequence: Long = 0L
+     private var lastPassiveProtectedBackToken: String? = null
+@@ -88,6 +89,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+         private const val RUNTIME_WORK_CACHE_MS = 300L
+         private const val TREE_SCAN_NEED_CACHE_MS = 1_200L
+         private const val POWER_MENU_FLOW_SESSION_MS = 8_000L
++        private const val SAFE_MODE_BACK_BURST_DEBOUNCE_MS = 450L
+ 
+         // English action words are matched as tokens.  Plain contains("like")
+         // incorrectly treats "dislike" as both Like and Dislike and can inflate a
+@@ -1787,7 +1789,10 @@ class DetoxAccessibilityService : AccessibilityService() {
+             text.contains("앱 목록") || text.contains("애플리케이션") || text.contains("설치된 앱") ||
+             text.contains("apps") || text.contains("installed apps") ||
+             text.contains("특별 접근") || text.contains("special access") ||
+-            text.contains("접근성 앱") || text.contains("설치된 서비스") || text.contains("installed services")
++            text.contains("접근성 앱") || text.contains("설치된 서비스") || text.contains("installed services") ||
++            text.contains("기기 관리자 앱") || text.contains("디바이스 관리자 앱") ||
++            text.contains("device admin apps") || text.contains("device administrator apps") ||
++            text.contains("관리자 앱")
+     }
+ 
+     private fun isSettingsSearchHelpOrSuggestionActivity(): Boolean {
+@@ -2177,16 +2182,13 @@ class DetoxAccessibilityService : AccessibilityService() {
+             return false
+         }
+ 
+-        val exactTitleTarget = runCatching { findProtectedTargetTitleOnScreen() }.getOrNull()
+-        val exactSelf = exactSelfToolbar || exactTitleTarget == packageName
+         val interactiveOff = hasInteractiveToggleInRoot() || hasExplicitOffAction(t)
+         val recentlyEnteredSelf = now < selfAccessibilityDetailArmedUntilMs
+         val decision = AccessibilityTargetIsolationPolicy.Evidence(
+             listSurface = false,
+             clickedExactSelf = false,
+             detailSurface = detailActivity || detailWords || hasAccessibilityPageContext(t),
+-            exactSelfTitle = exactSelf,
+-            armedFromSelfClick = recentlyEnteredSelf,
++            exactSelfTitle = exactSelfToolbar,
+             interactiveOffAction = interactiveOff
+         )
+         if (AccessibilityTargetIsolationPolicy.shouldBlockDetail(decision)) {
+@@ -2195,7 +2197,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+         }
+ 
+         val finalDialog = activity.contains("dialog") || activity.contains("alert")
+-        if (recentlyEnteredSelf && finalDialog && hasFinalAction(t)) return true
++        if (recentlyEnteredSelf && finalDialog && hasFinalAction(t) && mentionsSelf(t)) return true
+         if (now >= selfAccessibilityDetailArmedUntilMs) selfAccessibilityDetailArmedUntilMs = 0L
+         return false
+     }
+@@ -2213,9 +2215,8 @@ class DetoxAccessibilityService : AccessibilityService() {
+             activity.contains("deactivateadmin")
+         if (!adminDetailActivity && looksLikeDeviceAdminList(t)) return false
+ 
+-        val exactTitleTarget = runCatching { findProtectedTargetTitleOnScreen() }.getOrNull()
+-        val exactSelfDetail = exactTitleTarget == packageName ||
+-            (adminDetailActivity && runCatching { hasExactSelfNodeAnywhere() }.getOrDefault(false))
++        val exactSelfDetail = adminDetailActivity &&
++            runCatching { hasExactSelfToolbarTitle() }.getOrDefault(false)
+ 
+         // Device-admin list pages and other apps' admin pages often keep "디톡스락" in
+         // recycled rows/breadcrumbs.  Never block just because the page says "기기 관리자".
+@@ -2230,11 +2231,11 @@ class DetoxAccessibilityService : AccessibilityService() {
+             return true
+         }
+ 
+-        if (now < selfAdminDetailArmedUntilMs && adminDetailActivity &&
++        if (now < selfAdminDetailArmedUntilMs && adminDetailActivity && mentionsSelf(t) &&
+             (hasExplicitOffAction(t) || hasFinalAction(t))
+         ) return true
+ 
+-        val armedFinalForSelf = now < selfAdminDetailArmedUntilMs && hasFinalAction(t)
++        val armedFinalForSelf = now < selfAdminDetailArmedUntilMs && mentionsSelf(t) && hasFinalAction(t)
+         if (armedFinalForSelf) return true
+ 
+         selfAdminDetailArmedUntilMs = 0L
+@@ -2252,17 +2253,27 @@ class DetoxAccessibilityService : AccessibilityService() {
+                 clickedExactSelf = clickedExactSelf,
+                 detailSurface = false,
+                 exactSelfTitle = false,
+-                armedFromSelfClick = false,
+                 interactiveOffAction = false
+             )
+         )
+     }
+ 
+-    private fun isSelfAdminList(t: String): Boolean {
+-        // Do not close the list.  Just mask DetoxLock's row so other admin apps remain usable.
++    private fun isSelfAdminList(t: String, clickedExactSelf: Boolean): Boolean {
++        // Keep the device-admin list usable. Only a concrete click on DetoxLock's own
++        // row may be routed back; merely showing DetoxLock beside other admin apps is
++        // never enough to block another app from being enabled or configured.
+         if (isSettingsSearchHelpOrSuggestionActivity()) return false
+         if (!hasSelfAndExactProtectedContext(t, ::hasAdminPageContext)) return false
+-        return looksLikeDeviceAdminList(t) && DevicePolicyHelper.isAdminActive(this) && !isSelfDeviceAdminDetail(t)
++        return DevicePolicyHelper.isAdminActive(this) &&
++            AccessibilityTargetIsolationPolicy.shouldBlockList(
++                AccessibilityTargetIsolationPolicy.Evidence(
++                    listSurface = looksLikeDeviceAdminList(t) && !isSelfDeviceAdminDetail(t),
++                    clickedExactSelf = clickedExactSelf,
++                    detailSurface = false,
++                    exactSelfTitle = false,
++                    interactiveOffAction = false
++                )
++            )
+     }
+ 
+     private fun isProtectedUninstallOrClearData(t: String): Boolean {
+@@ -2470,31 +2481,28 @@ class DetoxAccessibilityService : AccessibilityService() {
+             return true
+         }
+         val token = "${kind.name}:$protectionSurfaceSequence"
+-        // Reservation happens before BACK. Repeated content events for the same surface
+-        // therefore perform neither another BACK nor another Activity launch.
+-        if (!ProtectionNoticeLaunchGate.tryReserve(token)) return true
++        // The explanatory Activity is single-instance, but Safe Mode closing must not
++        // depend on whether that Activity is already pending or visible. A user can open
++        // the power menu again over the existing notice, and that new system surface
++        // still needs its own two-BACK burst.
++        val noticeReserved = ProtectionNoticeLaunchGate.tryReserve(token)
++        val plan = ProtectionRoutePlan.forKind(kind)
+ 
+         CriticalSettingsOverlay.hideRow()
+         A11yOverlayGuard.hide()
+         OverlayGuard.hide()
+         CriticalSettingsShieldState.mark(1_500L)
+-        lastCriticalBackMs = SystemClock.elapsedRealtime()
+-        lastActionMs = lastCriticalBackMs
+-        runCatching { performGlobalAction(GLOBAL_ACTION_BACK) }
+ 
+-        val plan = ProtectionRoutePlan.forKind(kind)
+-        if (plan.backCount > 1) {
+-            handler.postDelayed({
+-                val stillProtected = accessibilitySafeModeGuardActive()
+-                if (ProtectionNoticeLaunchGate.isReserved(token) && stillProtected &&
+-                    !RemoteSafetyGate.isMasterStopActive(this@DetoxAccessibilityService) &&
+-                    !ProtectionRuntimePolicy.isUserFacingPaused(this@DetoxAccessibilityService)
+-                ) {
+-                    lastCriticalBackMs = SystemClock.elapsedRealtime()
+-                    lastActionMs = lastCriticalBackMs
+-                    runCatching { performGlobalAction(GLOBAL_ACTION_BACK) }
+-                }
+-            }, plan.backIntervalMs)
++        if (ProtectionRoutePlan.backRunsWhileNoticeVisible(kind)) {
++            performSafeModeBackBurstIfDue(plan)
++            if (!noticeReserved) return true
++        } else {
++            // Other protected Settings surfaces remain coupled to one reservation so
++            // repeated content events cannot repeatedly navigate backwards.
++            if (!noticeReserved) return true
++            lastCriticalBackMs = SystemClock.elapsedRealtime()
++            lastActionMs = lastCriticalBackMs
++            runCatching { performGlobalAction(GLOBAL_ACTION_BACK) }
+         }
+ 
+         handler.postDelayed({
+@@ -2566,6 +2574,29 @@ class DetoxAccessibilityService : AccessibilityService() {
+     }
+ 
+ 
++    private fun performSafeModeBackBurstIfDue(plan: ProtectionBackPlan): Boolean {
++        val now = SystemClock.elapsedRealtime()
++        if (now - lastSafeModeBackBurstMs < SAFE_MODE_BACK_BURST_DEBOUNCE_MS) return false
++        lastSafeModeBackBurstMs = now
++        lastCriticalBackMs = now
++        lastActionMs = now
++        runCatching { performGlobalAction(GLOBAL_ACTION_BACK) }
++
++        if (plan.backCount > 1) {
++            handler.postDelayed({
++                if (accessibilitySafeModeGuardActive() &&
++                    !RemoteSafetyGate.isMasterStopActive(this@DetoxAccessibilityService) &&
++                    !ProtectionRuntimePolicy.isUserFacingPaused(this@DetoxAccessibilityService)
++                ) {
++                    lastCriticalBackMs = SystemClock.elapsedRealtime()
++                    lastActionMs = lastCriticalBackMs
++                    runCatching { performGlobalAction(GLOBAL_ACTION_BACK) }
++                }
++            }, plan.backIntervalMs)
++        }
++        return true
++    }
++
+     private fun clickableActionLabels(): Set<String> {
+         val labels = LinkedHashSet<String>()
+         var visited = 0
+@@ -2656,16 +2687,16 @@ class DetoxAccessibilityService : AccessibilityService() {
+         if (now >= selfAccessibilityDetailArmedUntilMs || !trustedArmedDialogHost()) return false
+         val activity = activeSurfaceClassName()?.lowercase().orEmpty()
+         val dialog = activity.contains("dialog") || activity.contains("alert") || activeSurfacePackageName() == "android"
+-        return dialog && hasFinalAction(text) &&
+-            (hasAccessibilityPageContext(text) || mentionsSelf(text) || hasExplicitOffAction(text))
++        return dialog && hasFinalAction(text) && mentionsSelf(text) &&
++            (hasAccessibilityPageContext(text) || hasExplicitOffAction(text))
+     }
+ 
+     private fun isArmedAdminFinal(text: String, now: Long): Boolean {
+         if (now >= selfAdminDetailArmedUntilMs || !trustedArmedDialogHost()) return false
+         val activity = activeSurfaceClassName()?.lowercase().orEmpty()
+         val dialog = activity.contains("dialog") || activity.contains("alert") || activeSurfacePackageName() == "android"
+-        return dialog && hasFinalAction(text) &&
+-            (hasAdminPageContext(text) || mentionsSelf(text) || text.contains("deactivate") || text.contains("관리자 해제"))
++        return dialog && hasFinalAction(text) && mentionsSelf(text) &&
++            (hasAdminPageContext(text) || text.contains("deactivate") || text.contains("관리자 해제"))
+     }
+ 
+     /** Returns true if this event/tick was fully handled by self-protection. */
+@@ -2692,11 +2723,19 @@ class DetoxAccessibilityService : AccessibilityService() {
+             mergedText(event)
+         }
+         val clickedExactSelf = eventClickTargetsSelf(event)
+-        if (userInitiated && settingsPackage() && isSettingsListOrSearch(t) && !clickedExactSelf) {
+-            // Selecting another accessibility/admin app is a hard target boundary.
+-            // Do not carry DetoxLock's short detail latch into that app's toggle page.
+-            if (hasAccessibilityPageContext(t)) selfAccessibilityDetailArmedUntilMs = 0L
+-            if (hasAdminPageContext(t)) selfAdminDetailArmedUntilMs = 0L
++        if (userInitiated && settingsPackage() && !clickedExactSelf) {
++            // Any click that is not on DetoxLock and is no longer under an exact
++            // DetoxLock title is a hard target boundary. This also covers OEM builds
++            // that report the destination detail tree rather than the source list row.
++            val exactSelfTitle = runCatching { hasExactSelfToolbarTitle() }.getOrDefault(false)
++            if (!exactSelfTitle) {
++                if (hasAccessibilityPageContext(t) || isSettingsListOrSearch(t)) {
++                    selfAccessibilityDetailArmedUntilMs = 0L
++                }
++                if (hasAdminPageContext(t) || looksLikeDeviceAdminList(t)) {
++                    selfAdminDetailArmedUntilMs = 0L
++                }
++            }
+         }
+         armSelfProtectionTargetFromClick(event, t, now, clickedExactSelf)
+ 
+@@ -2764,7 +2803,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+         // The predicate already requires the real Settings host, Accessibility list
+         // structure and exact DetoxLock target, so ordinary Settings pages stay usable.
+         val selfAccessibilityList = isSelfAccessibilityList(t, clickedExactSelf)
+-        val selfAdminList = isSelfAdminList(t)
++        val selfAdminList = isSelfAdminList(t, clickedExactSelf)
+         if (selfAccessibilityList) {
+             CriticalSettingsOverlay.hideFullIfKey("critical:accessibility", force = true)
+             lastSettingsCriticalSeenMs = now
+@@ -2867,6 +2906,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+         currentEventTextAtMs = 0L
+         currentEventTextPkg = null
+         currentEventTextCls = null
++        lastSafeModeBackBurstMs = 0L
+         runtimeWorkCacheAtMs = 0L
+         treeScanNeedCacheAtMs = 0L
+         treeScanNeedCachePkg = null
+diff --git a/app/src/main/java/com/siustudio/detoxlock/ProtectionNotice.kt b/app/src/main/java/com/siustudio/detoxlock/ProtectionNotice.kt
+index 5facf47..b44a8a5 100644
+--- a/app/src/main/java/com/siustudio/detoxlock/ProtectionNotice.kt
++++ b/app/src/main/java/com/siustudio/detoxlock/ProtectionNotice.kt
+@@ -66,6 +66,10 @@ data class ProtectionBackPlan(
+ 
+ /** One protected surface owns one bounded BACK sequence and one notice launch. */
+ object ProtectionRoutePlan {
++    /** Safe Mode is a system surface and must be closed even if its notice is already visible. */
++    fun backRunsWhileNoticeVisible(kind: ProtectionNoticeKind): Boolean =
++        kind == ProtectionNoticeKind.SAFE_MODE
++
+     fun forKind(kind: ProtectionNoticeKind): ProtectionBackPlan = when (kind) {
+         ProtectionNoticeKind.SAFE_MODE -> ProtectionBackPlan(
+             backCount = 2,
+diff --git a/app/src/test/java/com/siustudio/detoxlock/ProtectionSurfacePoliciesTest.kt b/app/src/test/java/com/siustudio/detoxlock/ProtectionSurfacePoliciesTest.kt
+index 055ced2..249078c 100644
+--- a/app/src/test/java/com/siustudio/detoxlock/ProtectionSurfacePoliciesTest.kt
++++ b/app/src/test/java/com/siustudio/detoxlock/ProtectionSurfacePoliciesTest.kt
+@@ -51,6 +51,8 @@ class ProtectionSurfacePoliciesTest {
+         assertTrue(safe.noticeDelayMs > safe.backIntervalMs)
+         assertEquals(1, ProtectionRoutePlan.forKind(ProtectionNoticeKind.ACCESSIBILITY).backCount)
+         assertEquals(1, ProtectionRoutePlan.forKind(ProtectionNoticeKind.APP_DELETE).backCount)
++        assertTrue(ProtectionRoutePlan.backRunsWhileNoticeVisible(ProtectionNoticeKind.SAFE_MODE))
++        assertFalse(ProtectionRoutePlan.backRunsWhileNoticeVisible(ProtectionNoticeKind.ACCESSIBILITY))
+     }
+ 
+     @Test
+@@ -60,7 +62,6 @@ class ProtectionSurfacePoliciesTest {
+             clickedExactSelf = false,
+             detailSurface = false,
+             exactSelfTitle = false,
+-            armedFromSelfClick = false,
+             interactiveOffAction = false
+         )
+         assertFalse(AccessibilityTargetIsolationPolicy.shouldBlockList(list))
+@@ -75,9 +76,9 @@ class ProtectionSurfacePoliciesTest {
+         assertTrue(AccessibilityTargetIsolationPolicy.shouldBlockDetail(
+             otherAppDetail.copy(exactSelfTitle = true)
+         ))
+-        assertTrue(AccessibilityTargetIsolationPolicy.shouldBlockDetail(
+-            otherAppDetail.copy(armedFromSelfClick = true)
+-        ))
++        // A stale DetoxLock click latch must never make another app's detail page
++        // blockable; only the current page's exact DetoxLock title is sufficient.
++        assertFalse(AccessibilityTargetIsolationPolicy.shouldBlockDetail(otherAppDetail))
+     }
+ 
+     @Test
