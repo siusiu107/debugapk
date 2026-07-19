@@ -8,6 +8,7 @@ on:
       - master
     paths:
       - '.github/workflows/android-build-from-zip.yml'
+      - 'FIX*_ANDROID.patch'
       - '*.zip'
       - 'source/**/*.zip'
 
@@ -75,6 +76,20 @@ jobs:
           PROJECT_DIR_ABS="$GITHUB_WORKSPACE/$PROJECT_DIR"
           echo "Android project detected at: $PROJECT_DIR_ABS"
           echo "PROJECT_DIR=$PROJECT_DIR_ABS" >> "$GITHUB_ENV"
+
+      - name: Apply DetoxLock source patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          PATCH_FILE="$GITHUB_WORKSPACE/FIX261_ANDROID.patch"
+          if [[ ! -f "$PATCH_FILE" ]]; then
+            echo "No FIX261 patch found; building the ZIP as uploaded."
+            exit 0
+          fi
+          echo "Applying: $PATCH_FILE"
+          cd "$PROJECT_DIR"
+          patch --dry-run -p1 < "$PATCH_FILE"
+          patch -p1 < "$PATCH_FILE"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
