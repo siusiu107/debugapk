@@ -1205,7 +1205,7 @@ index b8c6749..2f599a7 100644
 +        (value * ctx.resources.displayMetrics.density).toInt()
  }
 diff --git a/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt b/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
-index 1e84142..31ae22e 100644
+index 1e84142..6048232 100644
 --- a/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
 +++ b/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
 @@ -41,32 +41,27 @@ class DetoxAccessibilityService : AccessibilityService() {
@@ -2232,10 +2232,10 @@ index 1e84142..31ae22e 100644
 +    private fun eventClickTargetsSelf(event: AccessibilityEvent?): Boolean {
 +        if (event?.eventType != AccessibilityEvent.TYPE_VIEW_CLICKED || !settingsPackage()) return false
 +        val aliases = protectedAliases(packageName).map(::normalizeAlias).filter { it.length >= 2 }.toSet()
-+        val exactEventValue = buildList {
-+            event.text.mapNotNullTo(this) { it?.toString() }
-+            event.contentDescription?.toString()?.let(::add)
-+        }.any { normalizeAlias(it) in aliases }
++        val eventValues = ArrayList<String>(event.text.size + 1)
++        event.text.forEach { value -> value?.toString()?.let(eventValues::add) }
++        event.contentDescription?.toString()?.let(eventValues::add)
++        val exactEventValue = eventValues.any { normalizeAlias(it) in aliases }
 +        return exactEventValue || runCatching { clickSourceTargetsSelf(event) }.getOrDefault(false)
 +    }
 +
@@ -3530,7 +3530,7 @@ index 1f2ee42..e139a0a 100644
          mainHandler.post {
              targets.forEach { activity ->
 diff --git a/app/src/main/java/com/siustudio/detoxlock/ShortFormBlockedActivity.kt b/app/src/main/java/com/siustudio/detoxlock/ShortFormBlockedActivity.kt
-index 424921d..dbeb085 100644
+index 424921d..9f9c6d4 100644
 --- a/app/src/main/java/com/siustudio/detoxlock/ShortFormBlockedActivity.kt
 +++ b/app/src/main/java/com/siustudio/detoxlock/ShortFormBlockedActivity.kt
 @@ -42,10 +42,10 @@ class ShortFormBlockedActivity : AppCompatActivity() {
@@ -3550,7 +3550,7 @@ index 424921d..dbeb085 100644
      private fun renderDetailOnly() {
          if (!::b.isInitialized) return
          val confirmedSurface = surface
-+        val platform = confirmedSurface?.let(ShortFormPolicy::platformFor)
++        val platform = confirmedSurface?.let { ShortFormPolicy.platformFor(it) }
          b.tvDetail.text = when {
 -            confirmedSurface == null ->
 +            confirmedSurface == null || platform == null ->
@@ -5138,7 +5138,7 @@ index 8bc6d88..0000000
 -        android:layout_marginTop="8dp"/>
 -</LinearLayout>
 diff --git a/app/src/main/res/xml/accessibility_config.xml b/app/src/main/res/xml/accessibility_config.xml
-index 2bc565e..cd52c52 100644
+index 2bc565e..8c3d309 100644
 --- a/app/src/main/res/xml/accessibility_config.xml
 +++ b/app/src/main/res/xml/accessibility_config.xml
 @@ -1,7 +1,7 @@
@@ -5147,7 +5147,7 @@ index 2bc565e..cd52c52 100644
 +    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged|typeWindowContentChanged|typeViewClicked"
      android:accessibilityFeedbackType="feedbackGeneric"
 -    android:notificationTimeout="35"
-+    android:notificationTimeout="80"
++    android:notificationTimeout="40"
      android:canRetrieveWindowContent="true"
      android:canRequestFilterKeyEvents="true"
      android:accessibilityFlags="flagRetrieveInteractiveWindows|flagRequestFilterKeyEvents" />
