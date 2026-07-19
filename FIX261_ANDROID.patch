@@ -1205,7 +1205,7 @@ index b8c6749..2f599a7 100644
 +        (value * ctx.resources.displayMetrics.density).toInt()
  }
 diff --git a/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt b/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
-index 1e84142..6048232 100644
+index 1e84142..7ddacf4 100644
 --- a/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
 +++ b/app/src/main/java/com/siustudio/detoxlock/DetoxAccessibilityService.kt
 @@ -41,32 +41,27 @@ class DetoxAccessibilityService : AccessibilityService() {
@@ -2041,7 +2041,7 @@ index 1e84142..6048232 100644
      private fun looksLikeDeviceAdminList(t: String): Boolean {
          if (!settingsPackage()) return false
          val text = t.lowercase()
-@@ -2389,70 +2447,124 @@ class DetoxAccessibilityService : AccessibilityService() {
+@@ -2389,70 +2447,125 @@ class DetoxAccessibilityService : AccessibilityService() {
          runCatching { performGlobalAction(GLOBAL_ACTION_BACK) }
      }
  
@@ -2059,7 +2059,8 @@ index 1e84142..6048232 100644
 +        userInitiated: Boolean = false
 +    ): Boolean {
 +        if (RemoteSafetyGate.isMasterStopActive(this) || ProtectionRuntimePolicy.isUserFacingPaused(this)) return false
-+        if (!userInitiated && ProtectionNoticeLaunchGate.shouldSuppressPassiveReentry(kind)) {
++        val settingsPassiveHandoff = kind != ProtectionNoticeKind.SAFE_MODE
++        if (settingsPassiveHandoff && !userInitiated && ProtectionNoticeLaunchGate.shouldSuppressPassiveReentry(kind)) {
 +            // Closing the notice can reveal another protected parent page (for example
 +            // an accessibility list below its detail page). Route each newly exposed
 +            // surface back once, but never create a second notice for this same flow.
@@ -2221,7 +2222,7 @@ index 1e84142..6048232 100644
      private fun clickableActionLabels(): Set<String> {
          val labels = LinkedHashSet<String>()
          var visited = 0
-@@ -2512,10 +2624,23 @@ class DetoxAccessibilityService : AccessibilityService() {
+@@ -2512,10 +2625,23 @@ class DetoxAccessibilityService : AccessibilityService() {
          return false
      }
  
@@ -2249,7 +2250,7 @@ index 1e84142..6048232 100644
          if (hasAccessibilityPageContext(text)) selfAccessibilityDetailArmedUntilMs = now + 5_000L
          if (hasAdminPageContext(text)) selfAdminDetailArmedUntilMs = now + 5_000L
      }
-@@ -2547,7 +2672,6 @@ class DetoxAccessibilityService : AccessibilityService() {
+@@ -2547,7 +2673,6 @@ class DetoxAccessibilityService : AccessibilityService() {
          val active = accessibilitySelfProtectionActive()
          if (!active) {
              CriticalSettingsOverlay.hideAll(forceFull = true)
@@ -2257,7 +2258,7 @@ index 1e84142..6048232 100644
              CriticalSettingsShieldState.clear()
              selfAdminDetailArmedUntilMs = 0L
              selfAccessibilityDetailArmedUntilMs = 0L
-@@ -2556,6 +2680,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+@@ -2556,6 +2681,7 @@ class DetoxAccessibilityService : AccessibilityService() {
          }
  
          val now = SystemClock.elapsedRealtime()
@@ -2265,17 +2266,23 @@ index 1e84142..6048232 100644
          val hasArmedCrossPackageFlow = now < accessibilityResetFlowArmedUntilMs ||
              now < selfAccessibilityDetailArmedUntilMs || now < selfAdminDetailArmedUntilMs
          val t = preparedText ?: if (event == null && hasArmedCrossPackageFlow && trustedArmedDialogHost()) {
-@@ -2565,7 +2690,8 @@ class DetoxAccessibilityService : AccessibilityService() {
+@@ -2565,7 +2691,14 @@ class DetoxAccessibilityService : AccessibilityService() {
          } else {
              mergedText(event)
          }
 -        armSelfProtectionTargetFromClick(event, t, now)
 +        val clickedExactSelf = eventClickTargetsSelf(event)
++        if (userInitiated && settingsPackage() && isSettingsListOrSearch(t) && !clickedExactSelf) {
++            // Selecting another accessibility/admin app is a hard target boundary.
++            // Do not carry DetoxLock's short detail latch into that app's toggle page.
++            if (hasAccessibilityPageContext(t)) selfAccessibilityDetailArmedUntilMs = 0L
++            if (hasAdminPageContext(t)) selfAdminDetailArmedUntilMs = 0L
++        }
 +        armSelfProtectionTargetFromClick(event, t, now, clickedExactSelf)
  
          // The screenshot-proven execution page is blocked immediately. It also arms a
          // short flow window because Samsung may move a following AlertDialog to the
-@@ -2582,40 +2708,25 @@ class DetoxAccessibilityService : AccessibilityService() {
+@@ -2582,40 +2715,25 @@ class DetoxAccessibilityService : AccessibilityService() {
          val accessibilityFinal = isArmedAccessibilityFinal(t, now)
          val adminFinal = isArmedAdminFinal(t, now)
  
@@ -2323,7 +2330,7 @@ index 1e84142..6048232 100644
              if (now >= selfAdminDetailArmedUntilMs) selfAdminDetailArmedUntilMs = 0L
              if (now >= selfAccessibilityDetailArmedUntilMs) selfAccessibilityDetailArmedUntilMs = 0L
              if (now >= accessibilityResetFlowArmedUntilMs) accessibilityResetFlowArmedUntilMs = 0L
-@@ -2628,54 +2739,34 @@ class DetoxAccessibilityService : AccessibilityService() {
+@@ -2628,54 +2746,34 @@ class DetoxAccessibilityService : AccessibilityService() {
          // The entire real draw-over-apps Settings surface is now closed immediately.
          // No DetoxLock-row mask is used on this route.
          if (isExactOverlayPermissionSettingsSurface(t)) {
@@ -2388,7 +2395,7 @@ index 1e84142..6048232 100644
          }
  
          // Exact detail/off/destructive screens are routed away immediately.
-@@ -2683,106 +2774,25 @@ class DetoxAccessibilityService : AccessibilityService() {
+@@ -2683,106 +2781,25 @@ class DetoxAccessibilityService : AccessibilityService() {
          val selfAdminOff = isSelfDeviceAdminDetail(t)
          val selfDelete = isProtectedUninstallOrClearData(t)
          if (selfAccessibilityOff) {
@@ -2503,7 +2510,7 @@ index 1e84142..6048232 100644
      private fun isExplicitPowerPackage(pkg: String?): Boolean {
          val p = pkg?.lowercase().orEmpty()
          if (p == "com.samsung.android.app.globalactions" || p == "com.samsung.android.globalactions") return true
-@@ -2822,79 +2832,9 @@ class DetoxAccessibilityService : AccessibilityService() {
+@@ -2822,79 +2839,9 @@ class DetoxAccessibilityService : AccessibilityService() {
          if (RemoteSafetyGate.isMasterStopActive(this) || ProtectionRuntimePolicy.isUserFacingPaused(this)) return
          if (!accessibilitySafeModeGuardActive()) return
  
@@ -2586,7 +2593,7 @@ index 1e84142..6048232 100644
      }
  
  
-@@ -2904,8 +2844,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+@@ -2904,8 +2851,7 @@ class DetoxAccessibilityService : AccessibilityService() {
      }
  
      override fun onInterrupt() {
@@ -2596,7 +2603,7 @@ index 1e84142..6048232 100644
          hideAllGuards(forceFull = true)
      }
  
-@@ -2913,8 +2852,7 @@ class DetoxAccessibilityService : AccessibilityService() {
+@@ -2913,8 +2859,7 @@ class DetoxAccessibilityService : AccessibilityService() {
          AccessibilityRuntime.markStopped()
          handler.removeCallbacksAndMessages(null)
          runCatching { unregisterReceiver(screenReceiver) }
