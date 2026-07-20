@@ -10,7 +10,8 @@ on:
 
 permissions:
   contents: write
-\ njobs:
+
+jobs:
   export:
     runs-on: ubuntu-latest
     steps:
