@@ -96,6 +96,10 @@ w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_
 w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/PinModeDataPrepareActivity.kt:73:9 'overridePendingTransition(Int, Int): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/RealtimeUsage.kt:176:30 Parameter 'now' is never used
 w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/RemoteSafetyGate.kt:821:40 Parameter 'commandId' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/RequiredPermissionEnforcer.kt:24:21 Parameter 'ctx' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/RequiredPermissionEnforcer.kt:24:35 Parameter 'observedPkg' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/RequiredPermissionEnforcer.kt:27:17 Parameter 'ctx' is never used
+w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/RequiredPermissionEnforcer.kt:27:31 Parameter 'observedPkg' is never used
 w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/RequiredPerms.kt:43:26 Parameter 'ctx' is never used
 w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/ReviewPromptManager.kt:61:46 Parameter 'totalMs' is never used
 w: file:///home/runner/work/debugapk/debugapk/_unzipped_source/DetoxLock_FIX259_v3.0.17_source/app/src/main/java/com/siustudio/detoxlock/ReviewPromptManager.kt:86:38 Parameter 'activity' is never used
@@ -167,5 +171,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.8/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD SUCCESSFUL in 3m 30s
+BUILD SUCCESSFUL in 3m 33s
 42 actionable tasks: 40 executed, 2 from cache
