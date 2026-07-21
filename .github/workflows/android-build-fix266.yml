@@ -164,3 +164,5 @@ jobs:
           name: DetoxLock-FIX266-v3.0.24-debug-apk
           path: _apk_output/DetoxLock_FIX266_v3.0.24_debug.apk
           if-no-files-found: error
+
+# Triggered explicitly after workflow registration.
