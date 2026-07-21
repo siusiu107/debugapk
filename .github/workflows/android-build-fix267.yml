@@ -61,7 +61,7 @@ jobs:
           base64 --decode "$GITHUB_WORKSPACE/FIX265_PAYLOAD.patch.gz.b64" | gzip --decompress > "$GITHUB_WORKSPACE/FIX265_ANDROID.patch"
           base64 --decode "$GITHUB_WORKSPACE/FIX266_PAYLOAD.patch.gz.b64" | gzip --decompress > "$GITHUB_WORKSPACE/FIX266_ANDROID.patch"
           base64 --decode "$GITHUB_WORKSPACE/FIX267_PAYLOAD.patch.gz.b64" | gzip --decompress > "$GITHUB_WORKSPACE/FIX267_ANDROID.patch"
-          sha256sum "$GITHUB_WORKSPACE"/FIX26{4,5,6,7}_ANDROID.patch
+          sha256sum "$GITHUB_WORKSPACE"/FIX264_ANDROID.patch "$GITHUB_WORKSPACE"/FIX265_ANDROID.patch "$GITHUB_WORKSPACE"/FIX266_ANDROID.patch "$GITHUB_WORKSPACE"/FIX267_ANDROID.patch
 
       - name: Apply DetoxLock patches
         shell: bash
@@ -161,3 +161,5 @@ jobs:
           name: DetoxLock-FIX267-v3.0.25-debug-apk
           path: _apk_output/DetoxLock_FIX267_v3.0.25_debug.apk
           if-no-files-found: error
+
+# trigger: FIX267 combined protection build
