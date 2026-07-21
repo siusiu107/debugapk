@@ -8,7 +8,7 @@ on:
       - master
     paths:
       - '.github/workflows/android-build-fix267.yml'
-      - 'FIX267_PAYLOAD.patch.gz.b64'
+      - 'FIX267_PAYLOAD.patch.gz.b64.part*'
 
 permissions:
   contents: write
@@ -53,14 +53,22 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           FIX264_PARTS=("$GITHUB_WORKSPACE"/FIX264_ANDROID.patch.gz.b64.part*)
+          FIX267_PARTS=("$GITHUB_WORKSPACE"/FIX267_PAYLOAD.patch.gz.b64.part*)
           if (( ${#FIX264_PARTS[@]} == 0 )); then
             echo 'ERROR: FIX264 patch payload parts are missing.'
             exit 1
           fi
+          if (( ${#FIX267_PARTS[@]} == 0 )); then
+            echo 'ERROR: FIX267 patch payload parts are missing.'
+            exit 1
+          fi
+          printf 'FIX267 parts:\n'
+          printf '%s\n' "${FIX267_PARTS[@]}"
           cat "${FIX264_PARTS[@]}" | base64 --decode | gzip --decompress > "$GITHUB_WORKSPACE/FIX264_ANDROID.patch"
           base64 --decode "$GITHUB_WORKSPACE/FIX265_PAYLOAD.patch.gz.b64" | gzip --decompress > "$GITHUB_WORKSPACE/FIX265_ANDROID.patch"
           base64 --decode "$GITHUB_WORKSPACE/FIX266_PAYLOAD.patch.gz.b64" | gzip --decompress > "$GITHUB_WORKSPACE/FIX266_ANDROID.patch"
-          base64 --decode "$GITHUB_WORKSPACE/FIX267_PAYLOAD.patch.gz.b64" | gzip --decompress > "$GITHUB_WORKSPACE/FIX267_ANDROID.patch"
+          cat "${FIX267_PARTS[@]}" | base64 --decode | gzip --decompress > "$GITHUB_WORKSPACE/FIX267_ANDROID.patch"
+          echo '0196db38f0a1a5b6d4bc4616e0187305abab18e18da0c930e18a2e7b468224fe  FIX267_ANDROID.patch' | (cd "$GITHUB_WORKSPACE" && sha256sum -c -)
           sha256sum "$GITHUB_WORKSPACE"/FIX264_ANDROID.patch "$GITHUB_WORKSPACE"/FIX265_ANDROID.patch "$GITHUB_WORKSPACE"/FIX266_ANDROID.patch "$GITHUB_WORKSPACE"/FIX267_ANDROID.patch
 
       - name: Apply DetoxLock patches
@@ -162,4 +170,4 @@ jobs:
           path: _apk_output/DetoxLock_FIX267_v3.0.25_debug.apk
           if-no-files-found: error
 
-# trigger: FIX267 combined protection build
+# trigger: FIX267 verified split-payload build
