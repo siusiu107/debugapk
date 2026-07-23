@@ -1,0 +1,176 @@
+name: Android APK Build FIX268
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - '.github/workflows/android-build-fix268.yml'
+      - 'FIX268_PAYLOAD.patch.gz.b64'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare Android project from ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP_FILE="$(find . -maxdepth 4 -type f -name '*.zip' ! -path './.git/*' | sort | head -1)"
+          if [[ -z "$ZIP_FILE" ]]; then
+            echo 'ERROR: No source ZIP found.'
+            exit 1
+          fi
+          echo "Using source ZIP: $ZIP_FILE"
+          rm -rf _unzipped_source
+          mkdir -p _unzipped_source
+          unzip -q "$ZIP_FILE" -d _unzipped_source
+          PROJECT_DIR=""
+          while IFS= read -r settings_file; do
+            dir="$(dirname "$settings_file")"
+            if [[ -f "$dir/gradlew" ]]; then
+              PROJECT_DIR="$dir"
+              break
+            fi
+          done < <(find _unzipped_source -type f \( -name settings.gradle -o -name settings.gradle.kts \) | sort)
+          if [[ -z "$PROJECT_DIR" ]]; then
+            echo 'ERROR: Android Gradle project not found in ZIP.'
+            exit 1
+          fi
+          echo "PROJECT_DIR=$GITHUB_WORKSPACE/$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Reconstruct FIX264 through FIX268 patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          FIX264_PARTS=("$GITHUB_WORKSPACE"/FIX264_ANDROID.patch.gz.b64.part*)
+          FIX267_PARTS=("$GITHUB_WORKSPACE"/FIX267_PAYLOAD.patch.gz.b64.part*)
+          if (( ${#FIX264_PARTS[@]} == 0 )); then
+            echo 'ERROR: FIX264 patch payload parts are missing.'
+            exit 1
+          fi
+          if (( ${#FIX267_PARTS[@]} == 0 )); then
+            echo 'ERROR: FIX267 patch payload parts are missing.'
+            exit 1
+          fi
+          printf 'FIX267 parts:\n'
+          printf '%s\n' "${FIX267_PARTS[@]}"
+          cat "${FIX264_PARTS[@]}" | base64 --decode | gzip --decompress > "$GITHUB_WORKSPACE/FIX264_ANDROID.patch"
+          base64 --decode "$GITHUB_WORKSPACE/FIX265_PAYLOAD.patch.gz.b64" | gzip --decompress > "$GITHUB_WORKSPACE/FIX265_ANDROID.patch"
+          base64 --decode "$GITHUB_WORKSPACE/FIX266_PAYLOAD.patch.gz.b64" | gzip --decompress > "$GITHUB_WORKSPACE/FIX266_ANDROID.patch"
+          cat "${FIX267_PARTS[@]}" | base64 --decode | gzip --decompress > "$GITHUB_WORKSPACE/FIX267_ANDROID.patch"
+          base64 --decode "$GITHUB_WORKSPACE/FIX268_PAYLOAD.patch.gz.b64" | gzip --decompress > "$GITHUB_WORKSPACE/FIX268_ANDROID.patch"
+          echo '0196db38f0a1a5b6d4bc4616e0187305abab18e18da0c930e18a2e7b468224fe  FIX267_ANDROID.patch' | (cd "$GITHUB_WORKSPACE" && sha256sum -c -)
+          echo 'a94c63fcf3fc2451c811d06bb72cebd95fbc1a222b59a0cf7084f0225586d83e  FIX268_ANDROID.patch' | (cd "$GITHUB_WORKSPACE" && sha256sum -c -)
+          sha256sum "$GITHUB_WORKSPACE"/FIX264_ANDROID.patch "$GITHUB_WORKSPACE"/FIX265_ANDROID.patch "$GITHUB_WORKSPACE"/FIX266_ANDROID.patch "$GITHUB_WORKSPACE"/FIX267_ANDROID.patch "$GITHUB_WORKSPACE"/FIX268_ANDROID.patch
+
+      - name: Apply DetoxLock patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          for PATCH_NAME in \
+            FIX261_ANDROID.patch \
+            FIX262_ANDROID.patch \
+            FIX263_META_ANDROID.patch \
+            FIX263_SERVICE_A_ANDROID.patch \
+            FIX263_SERVICE_B_ANDROID.patch \
+            FIX264_ANDROID.patch \
+            FIX265_ANDROID.patch \
+            FIX266_ANDROID.patch \
+            FIX267_ANDROID.patch \
+            FIX268_ANDROID.patch; do
+            PATCH_FILE="$GITHUB_WORKSPACE/$PATCH_NAME"
+            if [[ ! -f "$PATCH_FILE" ]]; then
+              echo "Skipping missing patch: $PATCH_NAME"
+              continue
+            fi
+            echo "Applying: $PATCH_NAME"
+            patch --dry-run -p1 < "$PATCH_FILE"
+            patch -p1 < "$PATCH_FILE"
+          done
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      - name: Test and build debug APK
+        id: gradle_build
+        shell: bash
+        run: |
+          set +e
+          cd "$PROJECT_DIR"
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest assembleDebug 2>&1 | tee "$GITHUB_WORKSPACE/FIX268_BUILD.log"
+          BUILD_EXIT=${PIPESTATUS[0]}
+          echo "exit_code=$BUILD_EXIT" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Collect APK
+        if: steps.gradle_build.outputs.exit_code == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$GITHUB_WORKSPACE/_apk_output"
+          mkdir -p "$GITHUB_WORKSPACE/_apk_output"
+          APK_FILE="$(find "$PROJECT_DIR" -path '*/build/outputs/apk/debug/*.apk' -type f | sort | head -1)"
+          test -n "$APK_FILE"
+          cp -v "$APK_FILE" "$GITHUB_WORKSPACE/_apk_output/DetoxLock_FIX268_v3.0.26_debug.apk"
+
+      - name: Publish FIX268 build result
+        if: always()
+        shell: bash
+        env:
+          BUILD_EXIT: ${{ steps.gradle_build.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          BUILD_EXIT="${BUILD_EXIT:-1}"
+          mkdir -p "$GITHUB_WORKSPACE/artifacts"
+          cp "$GITHUB_WORKSPACE/FIX268_BUILD.log" "$GITHUB_WORKSPACE/artifacts/FIX268_BUILD.log" 2>/dev/null || echo 'Build log unavailable.' > "$GITHUB_WORKSPACE/artifacts/FIX268_BUILD.log"
+          if [[ "$BUILD_EXIT" == '0' && -f "$GITHUB_WORKSPACE/_apk_output/DetoxLock_FIX268_v3.0.26_debug.apk" ]]; then
+            cp "$GITHUB_WORKSPACE/_apk_output/DetoxLock_FIX268_v3.0.26_debug.apk" "$GITHUB_WORKSPACE/artifacts/DetoxLock_FIX268_v3.0.26_debug.apk"
+            echo "SUCCESS commit=$GITHUB_SHA" > "$GITHUB_WORKSPACE/artifacts/FIX268_BUILD_STATUS.txt"
+          else
+            echo "FAILED commit=$GITHUB_SHA exit=$BUILD_EXIT" > "$GITHUB_WORKSPACE/artifacts/FIX268_BUILD_STATUS.txt"
+            BUILD_EXIT=1
+          fi
+          cd "$GITHUB_WORKSPACE"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/FIX268_BUILD.log artifacts/FIX268_BUILD_STATUS.txt
+          if [[ -f artifacts/DetoxLock_FIX268_v3.0.26_debug.apk ]]; then
+            git add artifacts/DetoxLock_FIX268_v3.0.26_debug.apk
+          fi
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publish FIX268 debug build result'
+            git push
+          fi
+          if [[ "$BUILD_EXIT" != '0' ]]; then exit "$BUILD_EXIT"; fi
+
+      - name: Upload APK artifact
+        if: steps.gradle_build.outputs.exit_code == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: DetoxLock-FIX268-v3.0.26-debug-apk
+          path: _apk_output/DetoxLock_FIX268_v3.0.26_debug.apk
+          if-no-files-found: error
+
+# trigger: FIX268 usage-access recovery and admin-marker build
