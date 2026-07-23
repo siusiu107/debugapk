@@ -1,0 +1,95 @@
+name: Publish FIX268 Source ZIP
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/publish-fix268-source.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reconstruct FIX268 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          ZIP_FILE="$(find . -maxdepth 4 -type f -name '*.zip' ! -path './.git/*' | sort | head -1)"
+          test -n "$ZIP_FILE"
+          mkdir -p _unzipped_source
+          unzip -q "$ZIP_FILE" -d _unzipped_source
+
+          PROJECT_DIR=""
+          while IFS= read -r settings_file; do
+            dir="$(dirname "$settings_file")"
+            if [[ -f "$dir/gradlew" ]]; then
+              PROJECT_DIR="$dir"
+              break
+            fi
+          done < <(find _unzipped_source -type f \( -name settings.gradle -o -name settings.gradle.kts \) | sort)
+          test -n "$PROJECT_DIR"
+          PROJECT_DIR="$GITHUB_WORKSPACE/$PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+          FIX264_PARTS=("$GITHUB_WORKSPACE"/FIX264_ANDROID.patch.gz.b64.part*)
+          FIX267_PARTS=("$GITHUB_WORKSPACE"/FIX267_PAYLOAD.patch.gz.b64.part*)
+          test "${#FIX264_PARTS[@]}" -gt 0
+          test "${#FIX267_PARTS[@]}" -gt 0
+          cat "${FIX264_PARTS[@]}" | base64 --decode | gzip --decompress > FIX264_ANDROID.patch
+          base64 --decode FIX265_PAYLOAD.patch.gz.b64 | gzip --decompress > FIX265_ANDROID.patch
+          base64 --decode FIX266_PAYLOAD.patch.gz.b64 | gzip --decompress > FIX266_ANDROID.patch
+          cat "${FIX267_PARTS[@]}" | base64 --decode | gzip --decompress > FIX267_ANDROID.patch
+          base64 --decode FIX268_PAYLOAD.patch.gz.b64 | gzip --decompress > FIX268_ANDROID.patch
+
+          echo '0196db38f0a1a5b6d4bc4616e0187305abab18e18da0c930e18a2e7b468224fe  FIX267_ANDROID.patch' | sha256sum -c -
+          echo 'a94c63fcf3fc2451c811d06bb72cebd95fbc1a222b59a0cf7084f0225586d83e  FIX268_ANDROID.patch' | sha256sum -c -
+
+          cd "$PROJECT_DIR"
+          for PATCH_NAME in \
+            FIX261_ANDROID.patch \
+            FIX262_ANDROID.patch \
+            FIX263_META_ANDROID.patch \
+            FIX263_SERVICE_A_ANDROID.patch \
+            FIX263_SERVICE_B_ANDROID.patch \
+            FIX264_ANDROID.patch \
+            FIX265_ANDROID.patch \
+            FIX266_ANDROID.patch \
+            FIX267_ANDROID.patch \
+            FIX268_ANDROID.patch; do
+            patch --dry-run -p1 < "$GITHUB_WORKSPACE/$PATCH_NAME"
+            patch -p1 < "$GITHUB_WORKSPACE/$PATCH_NAME"
+          done
+
+      - name: Package and publish source ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE_ROOT="$GITHUB_WORKSPACE/_fix268_source_package"
+          mkdir -p "$PACKAGE_ROOT"
+          cp -a "$PROJECT_DIR" "$PACKAGE_ROOT/DetoxLock_FIX268_v3.0.26_source"
+          find "$PACKAGE_ROOT" -type d \( -name build -o -name .gradle -o -name .git \) -prune -exec rm -rf {} +
+          mkdir -p "$GITHUB_WORKSPACE/artifacts"
+          (
+            cd "$PACKAGE_ROOT"
+            zip -qr "$GITHUB_WORKSPACE/artifacts/DetoxLock_FIX268_v3.0.26_source.zip" DetoxLock_FIX268_v3.0.26_source
+          )
+          unzip -t "$GITHUB_WORKSPACE/artifacts/DetoxLock_FIX268_v3.0.26_source.zip"
+
+          cd "$GITHUB_WORKSPACE"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/DetoxLock_FIX268_v3.0.26_source.zip
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publish FIX268 source ZIP'
+            git push
+          fi
